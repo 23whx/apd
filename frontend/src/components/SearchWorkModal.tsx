@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Search, Loader2, AlertCircle, CheckCircle, Database, Sparkles } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -6,28 +6,39 @@ import { useNavigate } from 'react-router-dom';
 interface SearchWorkModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialQuery?: string;
 }
 
 type Step = 'input' | 'searching' | 'disambiguating' | 'scraping' | 'success' | 'duplicate';
 
-export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({ isOpen, onClose }) => {
+export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
+  isOpen,
+  onClose,
+  initialQuery = '',
+}) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [step, setStep] = useState<Step>('input');
   const [error, setError] = useState('');
   const [candidates, setCandidates] = useState<any[]>([]);
   const [result, setResult] = useState<any>(null);
 
+  // 每次打开弹窗时同步外层输入框的内容
+  useEffect(() => {
+    if (isOpen) {
+      setQuery(initialQuery);
+      setStep('input');
+      setError('');
+      setCandidates([]);
+      setResult(null);
+    }
+  }, [isOpen, initialQuery]);
+
   if (!isOpen) return null;
 
   const handleSearch = async () => {
     if (!query.trim()) return;
-    if (!user) {
-      setError('Please login first');
-      return;
-    }
-
     setError('');
     setStep('searching');
 
@@ -69,7 +80,7 @@ export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({ isOpen, onClos
       const scrapeResponse = await fetch('/api/scrape-work-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workName: query, userId: user.id })
+        body: JSON.stringify({ workName: query, userId: user?.id ?? null })
       });
 
       if (!scrapeResponse.ok) throw new Error('Scraping failed');
