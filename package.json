@@ -1,0 +1,16 @@
+{
+  "name": "apd-root",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Root package for Vercel Serverless Functions (API routes)",
+  "scripts": {},
+  "dependencies": {
+    "@supabase/supabase-js": "^2.86.0"
+  },
+  "devDependencies": {
+    "@vercel/node": "^3.0.0",
+    "typescript": "^5.4.0"
+  }
+}
+
+
