@@ -23,7 +23,7 @@ export const Navbar: React.FC = () => {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('users')
         .select('display_name, username')
         .eq('id', user.id)
