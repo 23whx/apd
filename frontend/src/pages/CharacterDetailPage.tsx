@@ -112,31 +112,38 @@ export const CharacterDetailPage: React.FC = () => {
         Back to work
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Character Info */}
-        <div className="lg:col-span-1">
-          <div className="bg-eva-surface border border-white/10 rounded-xl p-6 sticky top-20">
-            <div className="aspect-square bg-gray-800 rounded-lg mb-4 overflow-hidden flex items-center justify-center">
-              {character.avatar_url ? (
-                <img
-                  src={character.avatar_url}
-                  alt={character.name_cn}
-                  className="w-full h-full object-contain"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-6xl text-gray-600">
-                  ?
-                </div>
+      {/* Character Header - Compact */}
+      <div className="bg-eva-surface border border-white/10 rounded-xl p-6 mb-6">
+        <div className="flex items-start gap-6">
+          {/* Avatar - Small */}
+          <div className="w-32 h-32 bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center">
+            {character.avatar_url ? (
+              <img
+                src={character.avatar_url}
+                alt={character.name_cn}
+                className="w-full h-full object-contain"
+              />
+            ) : (
+              <div className="text-4xl text-gray-600">?</div>
+            )}
+          </div>
+
+          {/* Character Info */}
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold mb-2">{getCharacterName(character)}</h1>
+            
+            <div className="text-sm text-gray-400 mb-3">
+              {character.name_en && character.name_en !== character.name_cn && (
+                <span>{character.name_en}</span>
+              )}
+              {character.name_jp && character.name_jp !== character.name_cn && (
+                <span className="ml-2">• {character.name_jp}</span>
               )}
             </div>
 
-            <h1 className="text-2xl font-bold mb-2">{getCharacterName(character)}</h1>
-
-            <div className="text-sm text-gray-400 space-y-1 mb-4">
-              {character.name_cn && i18n.language !== 'zh' && <div>中文: {character.name_cn}</div>}
-              {character.name_en && <div>English: {character.name_en}</div>}
-              {character.name_jp && <div>日本語: {character.name_jp}</div>}
-            </div>
+            {character.summary_md && (
+              <p className="text-gray-300 text-sm mb-3">{character.summary_md}</p>
+            )}
 
             {character.source_link && (
               <a
@@ -150,33 +157,30 @@ export const CharacterDetailPage: React.FC = () => {
             )}
           </div>
         </div>
+      </div>
 
-        {/* Right Column: Votes and Comments */}
-        <div className="lg:col-span-2 space-y-8">
-          {/* Vote Statistics */}
-          <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
-            <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-eva-secondary" />
-              Personality Voting Results
-            </h2>
+      {/* Vote Statistics - Compact Grid */}
+      <div className="bg-eva-surface border border-white/10 rounded-xl p-6 mb-6">
+        <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5 text-eva-secondary" />
+          Personality Voting Results
+        </h2>
 
-            <div className="space-y-6">
-              <VoteChart title="MBTI" data={stats.mbti} />
-              <VoteChart title="Enneagram" data={stats.enneagram} />
-              <VoteChart title="Subtype" data={stats.subtype} />
-              <VoteChart title="Yi Hexagram" data={stats.yi_hexagram} />
-            </div>
-          </div>
-
-          {/* Vote Panel */}
-          {user && (
-            <VotePanel characterId={id!} onVoteSubmit={fetchVoteStatistics} />
-          )}
-
-          {/* Comments */}
-          <CommentSection targetType="character" targetId={id!} />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <VoteChart title="MBTI" data={stats.mbti} />
+          <VoteChart title="Enneagram" data={stats.enneagram} />
+          <VoteChart title="Subtype" data={stats.subtype} />
+          <VoteChart title="Yi Hexagram" data={stats.yi_hexagram} />
         </div>
       </div>
+
+      {/* Vote Panel */}
+      {user && (
+        <VotePanel characterId={id!} onVoteSubmit={fetchVoteStatistics} />
+      )}
+
+      {/* Comments */}
+      <CommentSection targetType="character" targetId={id!} />
     </div>
   );
 };

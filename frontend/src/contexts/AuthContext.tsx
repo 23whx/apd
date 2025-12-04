@@ -20,11 +20,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const ensureUserProfile = async (_authUser: User) => {
+    // Disabled: User profiles are automatically created by database trigger
+    return;
+  };
+
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+       if (session?.user) {
+         // 确保 users 表中存在对应记录，避免权限检查时查不到用户
+         ensureUserProfile(session.user);
+       }
+
       setLoading(false);
     });
 
@@ -32,6 +43,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+
+       if (session?.user) {
+         ensureUserProfile(session.user);
+       }
+
       setLoading(false);
     });
 

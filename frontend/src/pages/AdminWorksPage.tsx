@@ -13,11 +13,11 @@ export const AdminWorksPage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && user) {
       checkAdminStatus();
       fetchWorks();
     }
-  }, [user, authLoading]);
+  }, [authLoading]); // Only depend on authLoading, not user
 
   const checkAdminStatus = async () => {
     if (!user) return;
@@ -36,8 +36,9 @@ export const AdminWorksPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('works')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('id, name_cn, name_en, name_jp, type, created_at')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
       if (error) throw error;
       setWorks(data || []);

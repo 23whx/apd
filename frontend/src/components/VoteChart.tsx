@@ -26,35 +26,40 @@ export const VoteChart: React.FC<VoteChartProps> = ({ title, data }) => {
   const colors = ['#A8FF60', '#965FD4', '#7E1012', '#646464', '#888888'];
 
   return (
-    <div className="mb-6">
-      <h3 className="text-lg font-bold mb-3">{title}</h3>
-      <div className="text-sm text-gray-400 mb-2">Total votes: {totalVotes}</div>
+    <div>
+      <h3 className="text-base font-bold mb-2">{title}</h3>
 
-      {/* Top result */}
+      {/* Top result - Compact */}
       {chartData.length > 0 && (
-        <div className="mb-4 p-4 bg-eva-secondary/10 border border-eva-secondary/30 rounded-lg">
-          <div className="text-sm text-gray-400">Most voted:</div>
-          <div className="text-2xl font-bold text-eva-secondary">
-            {chartData[0].name}
-          </div>
-          <div className="text-sm text-gray-400">
-            {chartData[0].value} votes ({((chartData[0].value / totalVotes) * 100).toFixed(1)}%)
+        <div className="mb-3 p-3 bg-eva-secondary/10 border border-eva-secondary/30 rounded-lg">
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className="text-lg font-bold text-eva-secondary">
+                {chartData[0].name}
+              </div>
+              <div className="text-xs text-gray-400">
+                {chartData[0].value} votes ({((chartData[0].value / totalVotes) * 100).toFixed(1)}%)
+              </div>
+            </div>
+            <div className="text-xs text-gray-500">
+              Total: {totalVotes}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Chart */}
-      <ResponsiveContainer width="100%" height={200}>
+      {/* Chart - Smaller */}
+      <ResponsiveContainer width="100%" height={150}>
         <BarChart data={chartData}>
           <XAxis
             dataKey="name"
             stroke="#666"
-            style={{ fontSize: '12px' }}
+            style={{ fontSize: '10px' }}
             angle={-45}
             textAnchor="end"
-            height={80}
+            height={60}
           />
-          <YAxis stroke="#666" style={{ fontSize: '12px' }} />
+          <YAxis stroke="#666" style={{ fontSize: '10px' }} />
           <Tooltip
             contentStyle={{
               backgroundColor: '#1A1A1A',
@@ -63,7 +68,7 @@ export const VoteChart: React.FC<VoteChartProps> = ({ title, data }) => {
               color: '#fff'
             }}
           />
-          <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+          <Bar dataKey="value" radius={[4, 4, 0, 0]}>
             {chartData.map((_, index) => (
               <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
             ))}

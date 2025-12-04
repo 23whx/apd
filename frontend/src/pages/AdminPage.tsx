@@ -22,44 +22,39 @@ export const AdminPage: React.FC = () => {
     if (!authLoading) {
       checkAdminAccess();
     }
-  }, [user, authLoading]);
+  }, [authLoading]); // Only depend on authLoading, not user
 
   const checkAdminAccess = async () => {
     if (!user) {
-      console.log('[Admin Check] No user logged in, redirecting to home');
       navigate('/');
       return;
     }
 
     try {
-      console.log('[Admin Check] Checking user:', user.email, 'ID:', user.id);
-      
       const { data, error } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.error('[Admin Check] Database error:', error);
-        alert(`权限检查失败：${error.message}\n\n请确保你的账号已在 users 表中创建。`);
+      if (error || !data) {
+        console.error('Admin permission check failed:', error?.message);
+        alert('Access denied: Unable to verify your permissions.');
         navigate('/');
         return;
       }
 
-      console.log('[Admin Check] User role:', data?.role);
-
-      if (!data || (data.role !== 'admin' && data.role !== 'mod')) {
-        alert(`访问被拒绝！\n\n当前角色：${data?.role || '未设置'}\n需要角色：admin 或 mod\n\n请联系管理员设置权限。`);
+      if (data.role !== 'admin' && data.role !== 'mod') {
+        alert(`Access denied!\n\nYour role: ${data.role || 'not set'}\nRequired: admin or mod`);
         navigate('/');
         return;
       }
 
       setIsAdmin(true);
       fetchStats();
-    } catch (error) {
-      console.error('[Admin Check] Unexpected error:', error);
-      alert('权限检查时发生错误，请查看控制台');
+    } catch (error: any) {
+      console.error('Error checking admin access:', error.message);
+      alert('An error occurred while verifying permissions.');
       navigate('/');
     }
   };

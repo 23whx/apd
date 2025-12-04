@@ -60,7 +60,22 @@ export const EditCharacterPage: React.FC = () => {
       setNameCn(characterData.name_cn || '');
       setNameEn(characterData.name_en || '');
       setNameJp(characterData.name_jp || '');
-      setAvatarUrl(characterData.avatar_url || '');
+
+      const existingAvatar: string | null = characterData.avatar_url || null;
+      // 如果是百度 / 花瓣等容易防盗链的域名，则在编辑页中不再预填，避免误以为是可用链接
+      if (
+        existingAvatar &&
+        (existingAvatar.includes('pics.baidu.com') ||
+          existingAvatar.includes('pics0.baidu.com') ||
+          existingAvatar.includes('pics1.baidu.com') ||
+          existingAvatar.includes('pics2.baidu.com') ||
+          existingAvatar.includes('pics3.baidu.com') ||
+          existingAvatar.includes('huaban.com'))
+      ) {
+        setAvatarUrl('');
+      } else {
+        setAvatarUrl(existingAvatar || '');
+      }
       setWorkId(characterData.work_id);
       setWorkName(characterData.works?.name_cn || '');
     } catch (error: any) {
@@ -80,22 +95,44 @@ export const EditCharacterPage: React.FC = () => {
     setError('');
 
     try {
-      const { error: updateError } = await supabase
+      console.log('[EditCharacter] 准备保存，当前 avatarUrl:', avatarUrl);
+      console.log('[EditCharacter] 角色 ID:', id);
+
+      const updateData = {
+        name_cn: nameCn.trim(),
+        name_en: nameEn.trim() || null,
+        name_jp: nameJp.trim() || null,
+        avatar_url: avatarUrl.trim() || null,
+      };
+
+      console.log('[EditCharacter] 更新数据:', updateData);
+
+      const { data, error: updateError } = await supabase
         .from('characters')
-        .update({
-          name_cn: nameCn.trim(),
-          name_en: nameEn.trim() || null,
-          name_jp: nameJp.trim() || null,
-          avatar_url: avatarUrl.trim() || null,
-        })
-        .eq('id', id);
+        .update(updateData)
+        .eq('id', id)
+        .select(); // 加上 select() 返回更新后的数据
 
-      if (updateError) throw updateError;
+      console.log('[EditCharacter] Supabase 返回 data:', data);
+      console.log('[EditCharacter] Supabase 返回 error:', updateError);
 
+      if (updateError) {
+        console.error('[EditCharacter] 更新失败:', updateError);
+        throw updateError;
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('更新失败：没有找到对应的角色记录，可能是权限不足或记录不存在');
+      }
+
+      console.log('[EditCharacter] 保存成功，更新后的数据:', data[0]);
       alert('保存成功！');
       navigate(`/characters/${id}`);
     } catch (err: any) {
-      setError(err.message || '保存失败');
+      console.error('[EditCharacter] 保存出错:', err);
+      const errorMsg = err.message || '保存失败';
+      setError(errorMsg);
+      alert(`保存失败：${errorMsg}`); // 同时弹出提示
     } finally {
       setSaving(false);
     }

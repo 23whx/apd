@@ -111,26 +111,6 @@ export const HomePage: React.FC = () => {
               </button>
             </div>
           </div>
-
-          {/* Stats */}
-          <div className="mt-12 grid grid-cols-2 gap-8 md:grid-cols-4 text-center border-t border-white/5 pt-8">
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-white">12k+</span>
-              <span className="text-sm text-gray-500 uppercase tracking-wider">{t('stats.characters')}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-eva-secondary">85k+</span>
-              <span className="text-sm text-gray-500 uppercase tracking-wider">{t('stats.votes')}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-white">2.4k</span>
-              <span className="text-sm text-gray-500 uppercase tracking-wider">{t('stats.works')}</span>
-            </div>
-            <div className="flex flex-col">
-              <span className="text-3xl font-bold text-eva-accent">99%</span>
-              <span className="text-sm text-gray-500 uppercase tracking-wider">{t('stats.uptime')}</span>
-            </div>
-          </div>
         </div>
       </div>
 

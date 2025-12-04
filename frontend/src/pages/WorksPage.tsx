@@ -14,18 +14,17 @@ export const WorksPage: React.FC = () => {
 
   useEffect(() => {
     fetchWorks();
-  }, [filter]);
+  }, []); // Only fetch once on mount
 
   const fetchWorks = async () => {
     setLoading(true);
     try {
-      let query = supabase.from('works').select('*').order('created_at', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('type', filter);
-      }
-
-      const { data, error } = await query;
+      // Only select needed fields
+      const { data, error } = await supabase
+        .from('works')
+        .select('id, name_cn, name_en, name_jp, alias, type, poster_url, summary_md, created_at')
+        .order('created_at', { ascending: false })
+        .limit(100); // Limit initial load
 
       if (error) throw error;
       setWorks(data || []);
@@ -36,12 +35,24 @@ export const WorksPage: React.FC = () => {
     }
   };
 
-  const filteredWorks = works.filter(
-    (work) =>
-      work.name_cn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      work.name_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      work.name_jp?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter works by type and search query in frontend
+  const filteredWorks = works
+    .filter((work) => {
+      // Filter by type
+      if (filter !== 'all' && !work.type.includes(filter)) {
+        return false;
+      }
+      // Filter by search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          work.name_cn.toLowerCase().includes(query) ||
+          work.name_en?.toLowerCase().includes(query) ||
+          work.name_jp?.toLowerCase().includes(query)
+        );
+      }
+      return true;
+    });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

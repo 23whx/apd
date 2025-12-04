@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS personality_votes (
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   mbti TEXT CHECK (mbti IS NULL OR mbti IN ('INTJ','INTP','ENTJ','ENTP','INFJ','INFP','ENFJ','ENFP','ISTJ','ISFJ','ESTJ','ESFJ','ISTP','ISFP','ESTP','ESFP')),
   enneagram TEXT,
-  subtype TEXT CHECK (subtype IS NULL OR subtype IN ('sx', 'so', 'sp')),
+  subtype TEXT CHECK (subtype IS NULL OR subtype IN ('sp/sx', 'sp/so', 'sx/sp', 'sx/so', 'so/sp', 'so/sx')),
   yi_hexagram TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(character_id, user_id)
@@ -65,6 +65,11 @@ CREATE TABLE IF NOT EXISTS comments (
   is_deleted BOOLEAN DEFAULT FALSE,
   flagged BOOLEAN DEFAULT FALSE
 );
+
+-- Unique index: one comment per user per target (excluding deleted comments)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_comments_unique_user_target 
+ON comments (target_type, target_id, user_id) 
+WHERE is_deleted = false;
 
 -- Source snapshots table
 CREATE TABLE IF NOT EXISTS source_snapshots (

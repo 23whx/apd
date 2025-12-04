@@ -19,7 +19,7 @@ export const ENNEAGRAM_TYPES = [
   '9w8', '9w1'
 ] as const;
 
-export const SUBTYPES = ['sx', 'so', 'sp'] as const;
+export const SUBTYPES = ['sp/sx', 'sp/so', 'sx/sp', 'sx/so', 'so/sp', 'so/sx'] as const;
 
 // 64 Hexagrams from Yi Jing (易经六十四卦)
 export const YI_HEXAGRAMS = [

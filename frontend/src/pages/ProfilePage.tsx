@@ -60,6 +60,20 @@ export const ProfilePage: React.FC = () => {
       if (error) throw error;
 
       setMessage('Profile updated successfully!');
+
+      // 通知全局（例如 Navbar）刷新显示名称
+      try {
+        window.dispatchEvent(
+          new CustomEvent('profile-updated', {
+            detail: {
+              display_name: displayName,
+              username
+            }
+          })
+        );
+      } catch {
+        // 在某些环境下 window 可能不可用，忽略即可
+      }
     } catch (error: any) {
       setMessage(`Error: ${error.message}`);
     } finally {

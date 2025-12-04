@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
 import { WorksPage } from './pages/WorksPage';
 import { WorkDetailPage } from './pages/WorkDetailPage';
+import { CharactersPage } from './pages/CharactersPage';
 import { CharacterDetailPage } from './pages/CharacterDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SubmitWorkPage } from './pages/SubmitWorkPage';
@@ -29,6 +30,7 @@ function App() {
               <Route path="/works" element={<WorksPage />} />
               <Route path="/works/:id" element={<WorkDetailPage />} />
               <Route path="/works/:workId/submit-character" element={<SubmitCharacterPage />} />
+              <Route path="/characters" element={<CharactersPage />} />
               <Route path="/characters/:id" element={<CharacterDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/submit" element={<SubmitWorkPage />} />

@@ -8,7 +8,6 @@ const resources = {
       nav: {
         works: 'Works',
         characters: 'Characters',
-        rankings: 'Rankings',
         login: 'Login',
         logout: 'Logout',
         profile: 'Profile'
@@ -59,7 +58,6 @@ const resources = {
       nav: {
         works: '作品',
         characters: '角色',
-        rankings: '排行榜',
         login: '登录',
         logout: '退出',
         profile: '个人中心'
@@ -110,7 +108,6 @@ const resources = {
       nav: {
         works: '作品',
         characters: 'キャラクター',
-        rankings: 'ランキング',
         login: 'ログイン',
         logout: 'ログアウト',
         profile: 'プロフィール'

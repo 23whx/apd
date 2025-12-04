@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Send, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Loader2, Edit2, Trash2, X, Check } from 'lucide-react';
 
 interface Comment {
   id: string;
@@ -25,10 +25,13 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
   const [newComment, setNewComment] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+  const [hasCommented, setHasCommented] = useState(false);
 
   useEffect(() => {
     fetchComments();
-  }, [targetId]);
+  }, [targetId, user]);
 
   const fetchComments = async () => {
     setFetchLoading(true);
@@ -43,6 +46,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
 
       if (error) throw error;
       setComments(data || []);
+
+      // Check if current user has already commented
+      if (user) {
+        const userComment = data?.find(c => c.user_id === user.id);
+        setHasCommented(!!userComment);
+      }
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
@@ -65,15 +74,73 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
         }
       ]);
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a unique constraint violation
+        if (error.message.includes('duplicate') || error.message.includes('unique')) {
+          alert('You have already commented on this item. Please refresh the page.');
+        } else {
+          alert(`Error: ${error.message}`);
+        }
+        throw error;
+      }
 
       setNewComment('');
+      setHasCommented(true);
       fetchComments();
     } catch (error: any) {
       console.error('Error posting comment:', error);
-      alert(`Error: ${error.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEdit = (comment: Comment) => {
+    setEditingId(comment.id);
+    setEditContent(comment.content_md);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditContent('');
+  };
+
+  const handleSaveEdit = async (commentId: string) => {
+    if (!editContent.trim()) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .update({ content_md: editContent.trim() })
+        .eq('id', commentId);
+
+      if (error) throw error;
+
+      setEditingId(null);
+      setEditContent('');
+      fetchComments();
+    } catch (error: any) {
+      console.error('Error updating comment:', error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  const handleDelete = async (commentId: string) => {
+    if (!confirm('Are you sure you want to delete this comment? You can comment again after deletion.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) throw error;
+
+      // After deletion, user can comment again
+      setHasCommented(false);
+      fetchComments();
+    } catch (error: any) {
+      console.error('Error deleting comment:', error);
+      alert(`Error: ${error.message}`);
     }
   };
 
@@ -86,34 +153,45 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
 
       {/* Comment form */}
       {user ? (
-        <form onSubmit={handleSubmit} className="mb-6">
-          <textarea
-            value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
-            placeholder="Share your thoughts..."
-            rows={3}
-            className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary resize-none"
-          />
-          <div className="flex justify-end mt-2">
-            <button
-              type="submit"
-              disabled={loading || !newComment.trim()}
-              className="bg-eva-secondary text-eva-bg px-4 py-2 rounded font-bold hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Posting...</span>
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  <span>Post Comment</span>
-                </>
-              )}
-            </button>
+        hasCommented ? (
+          <div className="mb-6 p-4 bg-eva-accent/10 border border-eva-accent/30 rounded-lg text-center">
+            <p className="text-eva-accent font-medium">
+              You have already commented. You can edit or delete your comment below.
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              Each user can only comment once per work/character.
+            </p>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="mb-6">
+            <textarea
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              placeholder="Share your thoughts... (You can only comment once)"
+              rows={3}
+              className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary resize-none"
+            />
+            <div className="flex justify-end mt-2">
+              <button
+                type="submit"
+                disabled={loading || !newComment.trim()}
+                className="bg-eva-secondary text-eva-bg px-4 py-2 rounded font-bold hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Posting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-4 h-4" />
+                    <span>Post Comment</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )
       ) : (
         <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg text-center text-gray-400">
           Please login to comment
@@ -136,13 +214,67 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
                   {comment.users.avatar_id}
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-sm">{comment.users.username}</span>
-                    <span className="text-xs text-gray-500">
-                      {new Date(comment.created_at).toLocaleDateString()}
-                    </span>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm">{comment.users.username}</span>
+                      <span className="text-xs text-gray-500">
+                        {new Date(comment.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    {/* Edit/Delete buttons - only show for own comments */}
+                    {user && user.id === comment.user_id && (
+                      <div className="flex items-center gap-2">
+                        {editingId === comment.id ? (
+                          <>
+                            <button
+                              onClick={() => handleSaveEdit(comment.id)}
+                              className="text-eva-secondary hover:text-eva-secondary/80 transition-colors"
+                              title="Save"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="text-gray-400 hover:text-white transition-colors"
+                              title="Cancel"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleEdit(comment)}
+                              className="text-gray-400 hover:text-white transition-colors"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(comment.id)}
+                              className="text-red-400 hover:text-red-300 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.content_md}</p>
+                  
+                  {/* Comment content - editable if in edit mode */}
+                  {editingId === comment.id ? (
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      rows={3}
+                      className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-eva-secondary resize-none"
+                    />
+                  ) : (
+                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.content_md}</p>
+                  )}
                 </div>
               </div>
             </div>

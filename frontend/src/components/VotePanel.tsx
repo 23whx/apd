@@ -21,28 +21,48 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
 
   useEffect(() => {
     if (user && characterId) {
-      fetchExistingVote();
+      // 延迟执行，避免与页面初始化冲突
+      const timer = setTimeout(() => {
+        fetchExistingVote();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [user, characterId]);
 
   const fetchExistingVote = async () => {
+    if (!user) return;
+
     try {
+      // 使用 maybeSingle 避免在没有投票记录时返回 406 错误
       const { data, error } = await supabase
         .from('personality_votes')
-        .select('*')
+        .select('mbti, enneagram, subtype, yi_hexagram')
         .eq('character_id', characterId)
-        .eq('user_id', user!.id)
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (data && !error) {
+      if (error) {
+        console.error('[VotePanel] Failed to fetch existing vote:', error);
+        console.error('[VotePanel] Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return;
+      }
+
+      if (data) {
         setMbti(data.mbti || '');
         setEnneagram(data.enneagram || '');
         setSubtype(data.subtype || '');
         setYiHexagram(data.yi_hexagram || '');
         setHasVoted(true);
+      } else {
+        setHasVoted(false);
       }
     } catch (error) {
-      // No existing vote
+      console.error('[VotePanel] Unexpected error:', error);
     }
   };
 
@@ -89,8 +109,8 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
   };
 
   return (
-    <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+    <div className="bg-eva-surface border border-white/10 rounded-xl p-6 mb-6">
+      <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
         <Vote className="w-5 h-5 text-eva-secondary" />
         {hasVoted ? 'Update Your Vote' : 'Cast Your Vote'}
       </h2>
@@ -105,7 +125,8 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* MBTI */}
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-300">MBTI Type</label>
@@ -142,7 +163,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
 
         {/* Subtype */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-300">Subtype</label>
+          <label className="block text-sm font-medium mb-2 text-gray-300">Subtype (Instinctual Variant)</label>
           <select
             value={subtype}
             onChange={(e) => setSubtype(e.target.value)}
@@ -151,10 +172,13 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
             <option value="">Select Subtype</option>
             {SUBTYPES.map((type) => (
               <option key={type} value={type}>
-                {type.toUpperCase()}
+                {type}
               </option>
             ))}
           </select>
+          <p className="mt-1 text-xs text-gray-500">
+            sp = Self-Preservation, sx = Sexual, so = Social
+          </p>
         </div>
 
         {/* Yi Hexagram */}
@@ -173,11 +197,12 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
             ))}
           </select>
         </div>
+        </div>
 
         <button
           type="submit"
           disabled={loading || (!mbti && !enneagram && !subtype && !yiHexagram)}
-          className="w-full bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full bg-eva-secondary text-eva-bg font-bold py-2.5 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
           {loading ? 'Submitting...' : (hasVoted ? 'Update Vote' : 'Submit Vote')}

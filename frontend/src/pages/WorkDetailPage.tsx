@@ -6,12 +6,19 @@ import { supabase } from '../lib/supabase';
 import type { Work, Character } from '../lib/types';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 
+interface CharacterWithPersonality extends Character {
+  top_mbti?: string;
+  top_enneagram?: string;
+  top_subtype?: string;
+  top_yi?: string;
+}
+
 export const WorkDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [work, setWork] = useState<Work | null>(null);
-  const [characters, setCharacters] = useState<Character[]>([]);
+  const [characters, setCharacters] = useState<CharacterWithPersonality[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -23,29 +30,70 @@ export const WorkDetailPage: React.FC = () => {
   const fetchWorkDetails = async () => {
     setLoading(true);
     try {
-      // Fetch work
-      const { data: workData, error: workError } = await supabase
-        .from('works')
-        .select('*')
-        .eq('id', id)
-        .single();
+      // Fetch work and characters in parallel
+      const [workResult, charsResult] = await Promise.all([
+        supabase
+          .from('works')
+          .select('id, name_cn, name_en, name_jp, type, poster_url, summary_md, source_urls, created_at')
+          .eq('id', id)
+          .single(),
+        supabase
+          .from('characters')
+          .select('id, name_cn, name_en, name_jp, avatar_url, work_id, created_at')
+          .eq('work_id', id)
+      ]);
 
-      if (workError) throw workError;
-      setWork(workData);
+      if (workResult.error) throw workResult.error;
+      if (charsResult.error) throw charsResult.error;
 
-      // Fetch characters
-      const { data: charsData, error: charsError } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('work_id', id);
+      setWork(workResult.data);
+      const chars = charsResult.data || [];
 
-      if (charsError) throw charsError;
-      setCharacters(charsData || []);
+      // Fetch personality votes for all characters
+      if (chars.length > 0) {
+        const characterIds = chars.map(c => c.id);
+        const { data: votesData } = await supabase
+          .from('personality_votes')
+          .select('character_id, mbti, enneagram, subtype, yi_hexagram')
+          .in('character_id', characterIds);
+
+        // Calculate top personality for each character
+        const charsWithPersonality = chars.map(char => {
+          const charVotes = votesData?.filter(v => v.character_id === char.id) || [];
+          
+          return {
+            ...char,
+            top_mbti: getTopVote(charVotes, 'mbti'),
+            top_enneagram: getTopVote(charVotes, 'enneagram'),
+            top_subtype: getTopVote(charVotes, 'subtype'),
+            top_yi: getTopVote(charVotes, 'yi_hexagram')
+          };
+        });
+
+        setCharacters(charsWithPersonality);
+      } else {
+        setCharacters(chars);
+      }
     } catch (error) {
       console.error('Error fetching work details:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const getTopVote = (votes: any[], field: string): string | undefined => {
+    const counts: Record<string, number> = {};
+    votes.forEach(vote => {
+      const value = vote[field];
+      if (value) {
+        counts[value] = (counts[value] || 0) + 1;
+      }
+    });
+    
+    const entries = Object.entries(counts);
+    if (entries.length === 0) return undefined;
+    
+    return entries.sort((a, b) => b[1] - a[1])[0][0];
   };
 
   const getWorkName = (work: Work) => {
@@ -189,12 +237,33 @@ export const WorkDetailPage: React.FC = () => {
                   )}
                 </div>
                 <div className="p-3">
-                  <h3 className="font-bold text-white group-hover:text-eva-secondary transition-colors line-clamp-2 text-sm">
+                  <h3 className="font-bold text-white group-hover:text-eva-secondary transition-colors line-clamp-2 text-sm mb-2">
                     {character.name_cn}
                   </h3>
-                  {character.name_en && (
-                    <p className="text-xs text-gray-400 line-clamp-1">{character.name_en}</p>
-                  )}
+                  
+                  {/* Personality Tags - 统一紫色，一排显示 */}
+                  <div className="flex flex-wrap gap-1">
+                    {character.top_mbti && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-eva-accent/20 text-eva-accent font-bold">
+                        {character.top_mbti}
+                      </span>
+                    )}
+                    {character.top_enneagram && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-eva-accent/20 text-eva-accent font-bold">
+                        {character.top_enneagram}
+                      </span>
+                    )}
+                    {character.top_subtype && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-eva-accent/20 text-eva-accent font-bold">
+                        {character.top_subtype}
+                      </span>
+                    )}
+                    {character.top_yi && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-eva-accent/20 text-eva-accent font-bold">
+                        {character.top_yi.substring(0, 10)}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ))}

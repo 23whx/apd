@@ -15,43 +15,70 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      // 立即设置一个默认值（邮箱前缀），避免显示空白
-      const fallbackName = user.email?.split('@')[0] || 'User';
-      setDisplayName(fallbackName);
+      // 尝试从缓存读取
+      const cacheKey = `user_display_name_${user.id}`;
+      const cached = localStorage.getItem(cacheKey);
       
-      // 然后异步获取完整的用户信息
-      fetchUserProfile();
+      if (cached) {
+        setDisplayName(cached);
+      } else {
+        // 没有缓存时使用邮箱前缀作为临时显示
+        const fallbackName = user.email?.split('@')[0] || 'User';
+        setDisplayName(fallbackName);
+      }
+      
+      // 延迟获取完整信息（防抖）
+      const timer = setTimeout(() => {
+        fetchUserProfile();
+      }, 500);
+      
+      return () => clearTimeout(timer);
     } else {
       setDisplayName('');
     }
-  }, [user]);
+  }, [user?.id]); // 只依赖 user.id，避免频繁触发
+
+  useEffect(() => {
+    const handleProfileUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<{ display_name?: string; username?: string }>;
+      const detail = customEvent.detail || {};
+      const fallbackName = user?.email?.split('@')[0] || 'User';
+      const name = detail.display_name || detail.username || fallbackName;
+      setDisplayName(name);
+      
+      // 更新缓存
+      if (user) {
+        localStorage.setItem(`user_display_name_${user.id}`, name);
+      }
+    };
+
+    window.addEventListener('profile-updated', handleProfileUpdated as EventListener);
+    return () => {
+      window.removeEventListener('profile-updated', handleProfileUpdated as EventListener);
+    };
+  }, [user?.id, user?.email]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
     
     try {
-      console.log('[Navbar] Fetching profile for:', user.email);
-      
       const { data, error } = await supabase
         .from('users')
         .select('display_name, username')
         .eq('id', user.id)
         .single();
 
-      if (error) {
-        console.warn('[Navbar] Failed to fetch user profile:', error.message);
-        // 保持使用邮箱前缀
-        return;
-      }
+      if (error) return;
 
       if (data) {
         const name = data.display_name || data.username || user.email?.split('@')[0] || 'User';
-        console.log('[Navbar] Profile loaded:', name);
         setDisplayName(name);
+        
+        // 缓存结果
+        localStorage.setItem(`user_display_name_${user.id}`, name);
       }
     } catch (error) {
-      console.warn('[Navbar] Error fetching user profile:', error);
-      // 保持使用邮箱前缀
+      // 静默失败
     }
   };
 
@@ -94,12 +121,6 @@ export const Navbar: React.FC = () => {
                   className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
                 >
                   {t('nav.characters')}
-                </Link>
-                <Link
-                  to="/rankings"
-                  className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
-                >
-                  {t('nav.rankings')}
                 </Link>
               </div>
             </div>

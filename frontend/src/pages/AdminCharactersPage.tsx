@@ -25,11 +25,11 @@ export const AdminCharactersPage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!authLoading && user) {
       checkAdminStatus();
       fetchCharacters();
     }
-  }, [user, authLoading]);
+  }, [authLoading]); // Only depend on authLoading, not user
 
   const checkAdminStatus = async () => {
     if (!user) return;
