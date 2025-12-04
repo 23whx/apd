@@ -43,13 +43,19 @@ export const HomePage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    setShowSearchModal(true);
+                  }
+                }}
                 placeholder={t('hero.searchPlaceholder')}
                 className="w-full bg-transparent border-none focus:ring-0 text-white placeholder-gray-500 px-4 py-3 outline-none"
               />
               <button 
                 onClick={() => {
-                  setSearchQuery('');
-                  setShowSearchModal(true);
+                  if (searchQuery.trim()) {
+                    setShowSearchModal(true);
+                  }
                 }}
                 className="bg-eva-secondary text-eva-bg px-6 py-2 rounded font-bold hover:bg-eva-secondary/90 transition-colors"
               >
@@ -129,7 +135,11 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      <SearchWorkModal isOpen={showSearchModal} onClose={() => setShowSearchModal(false)} />
+      <SearchWorkModal
+        isOpen={showSearchModal}
+        onClose={() => setShowSearchModal(false)}
+        initialQuery={searchQuery}
+      />
     </>
   );
 };
