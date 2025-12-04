@@ -1,13 +1,53 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Zap, Activity, ChevronRight } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { SearchWorkModal } from '../components/SearchWorkModal';
+import { Link, useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 export const HomePage: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [showNoResultModal, setShowNoResultModal] = useState(false);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setSearching(true);
+    
+    try {
+      // 尝试使用 RPC 函数进行搜索
+      const { data: allResults, error: searchError } = await supabase.rpc('search_works', {
+        search_query: searchQuery
+      }) as { data: any[] | null; error: any };
+
+      if (searchError) {
+        // RPC 函数不存在，直接跳转到作品列表页让用户手动筛选
+        console.warn('RPC search failed, redirecting to works page:', searchError);
+        navigate(`/works?search=${encodeURIComponent(searchQuery)}`);
+        setSearching(false);
+        return;
+      }
+
+      if (allResults && allResults.length > 0) {
+        if (allResults.length === 1) {
+          navigate(`/works/${allResults[0].id}`);
+        } else {
+          navigate(`/works?search=${encodeURIComponent(searchQuery)}`);
+        }
+      } else {
+        // 没找到结果，显示确认对话框
+        setShowNoResultModal(true);
+      }
+    } catch (err: any) {
+      console.error('Search error:', err);
+      // 发生错误时也跳转到作品列表页
+      navigate(`/works?search=${encodeURIComponent(searchQuery)}`);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   return (
     <>
@@ -44,22 +84,30 @@ export const HomePage: React.FC = () => {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && searchQuery.trim()) {
-                    setShowSearchModal(true);
+                  if (e.key === 'Enter') {
+                    handleSearch();
                   }
                 }}
                 placeholder={t('hero.searchPlaceholder')}
                 className="w-full bg-transparent border-none focus:ring-0 text-white placeholder-gray-500 px-4 py-3 outline-none"
+                disabled={searching}
               />
               <button 
-                onClick={() => {
-                  if (searchQuery.trim()) {
-                    setShowSearchModal(true);
-                  }
-                }}
-                className="bg-eva-secondary text-eva-bg px-6 py-2 rounded font-bold hover:bg-eva-secondary/90 transition-colors"
+                onClick={handleSearch}
+                disabled={!searchQuery.trim() || searching}
+                className="bg-eva-secondary text-eva-bg px-6 py-2 rounded font-bold hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
-                {t('hero.scanButton')}
+                {searching ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-eva-bg border-t-transparent rounded-full animate-spin"></div>
+                    搜索中...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-5 h-5" />
+                    搜索
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -135,11 +183,37 @@ export const HomePage: React.FC = () => {
         </div>
       </div>
 
-      <SearchWorkModal
-        isOpen={showSearchModal}
-        onClose={() => setShowSearchModal(false)}
-        initialQuery={searchQuery}
-      />
+      {/* No Result Modal */}
+      {showNoResultModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-eva-surface border border-white/10 rounded-xl max-w-md w-full p-8 relative">
+            <h3 className="text-2xl font-bold mb-4">未找到作品</h3>
+            <p className="text-gray-300 mb-6">
+              数据库中没有找到「{searchQuery}」相关的作品。您想要提交这个作品吗？
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowNoResultModal(false);
+                  navigate('/submit', { state: { workName: searchQuery } });
+                }}
+                className="flex-1 bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors"
+              >
+                是，去提交
+              </button>
+              <button
+                onClick={() => {
+                  setShowNoResultModal(false);
+                  setSearchQuery('');
+                }}
+                className="flex-1 bg-white/10 text-white font-bold py-3 rounded-lg hover:bg-white/20 transition-colors"
+              >
+                否，留在主页
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

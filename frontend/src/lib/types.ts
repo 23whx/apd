@@ -102,7 +102,8 @@ export interface Work {
   name_cn: string;
   name_en?: string;
   name_jp?: string;
-  type: 'anime' | 'manga' | 'game' | 'novel';
+  type: ('anime' | 'manga' | 'game' | 'novel')[]; // 改为数组
+  poster_url?: string; // 海报/封面图
   summary_md?: string;
   source_urls?: Record<string, string>;
   created_at: string;

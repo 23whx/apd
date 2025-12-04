@@ -21,9 +21,10 @@ export const SubmitWorkPage: React.FC = () => {
   const [nameCn, setNameCn] = useState('');
   const [nameEn, setNameEn] = useState('');
   const [nameJp, setNameJp] = useState('');
-  const [workType, setWorkType] = useState<'anime' | 'manga' | 'game' | 'novel'>('anime');
+  const [aliases, setAliases] = useState<string[]>(['']); // 别名列表
+  const [workTypes, setWorkTypes] = useState<('anime' | 'manga' | 'game' | 'novel')[]>(['anime']); // 改为数组
+  const [posterUrl, setPosterUrl] = useState(''); // 海报/封面图
   const [summary, setSummary] = useState('');
-  const [coverUrl, setCoverUrl] = useState('');
   
   // 角色列表
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -34,15 +35,54 @@ export const SubmitWorkPage: React.FC = () => {
   const [success, setSuccess] = useState(false);
   const [createdWorkId, setCreatedWorkId] = useState<number | null>(null);
 
+  // 从 localStorage 加载缓存的草稿
   useEffect(() => {
     if (!user) {
       navigate('/');
+      return;
     }
-    // 如果从搜索页面跳转过来，预填充作品名
+
+    // 从 localStorage 加载草稿
+    const savedDraft = localStorage.getItem('work_draft');
+    if (savedDraft) {
+      try {
+        const draft = JSON.parse(savedDraft);
+        setNameCn(draft.nameCn || '');
+        setNameEn(draft.nameEn || '');
+        setNameJp(draft.nameJp || '');
+        setAliases(draft.aliases || ['']);
+        setWorkTypes(draft.workTypes || ['anime']);
+        setPosterUrl(draft.posterUrl || '');
+        setSummary(draft.summary || '');
+        setCharacters(draft.characters || []);
+      } catch (error) {
+        console.error('Failed to load draft:', error);
+      }
+    }
+
+    // 如果从搜索页面跳转过来，预填充作品名（优先级更高）
     if (location.state?.workName) {
       setNameCn(location.state.workName);
     }
   }, [user, navigate, location]);
+
+  // 自动保存草稿到 localStorage
+  useEffect(() => {
+    if (!user) return;
+
+    const draft = {
+      nameCn,
+      nameEn,
+      nameJp,
+      aliases,
+      workTypes,
+      posterUrl,
+      summary,
+      characters
+    };
+
+    localStorage.setItem('work_draft', JSON.stringify(draft));
+  }, [nameCn, nameEn, nameJp, aliases, workTypes, posterUrl, summary, characters, user]);
 
   const addCharacter = () => {
     setCharacters([
@@ -67,6 +107,32 @@ export const SubmitWorkPage: React.FC = () => {
     );
   };
 
+  const addAlias = () => {
+    setAliases([...aliases, '']);
+  };
+
+  const removeAlias = (index: number) => {
+    setAliases(aliases.filter((_, i) => i !== index));
+  };
+
+  const updateAlias = (index: number, value: string) => {
+    const newAliases = [...aliases];
+    newAliases[index] = value;
+    setAliases(newAliases);
+  };
+
+  const toggleWorkType = (type: 'anime' | 'manga' | 'game' | 'novel') => {
+    if (workTypes.includes(type)) {
+      // 如果已选中，则取消选中（但至少保留一个）
+      if (workTypes.length > 1) {
+        setWorkTypes(workTypes.filter(t => t !== type));
+      }
+    } else {
+      // 如果未选中，则添加
+      setWorkTypes([...workTypes, type]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nameCn.trim()) {
@@ -79,6 +145,9 @@ export const SubmitWorkPage: React.FC = () => {
 
     try {
       // 1. 创建作品
+      // 过滤掉空别名
+      const validAliases = aliases.filter(a => a.trim() !== '');
+      
       const { data: newWork, error: workError } = await supabase
         .from('works')
         .insert([
@@ -86,9 +155,10 @@ export const SubmitWorkPage: React.FC = () => {
             name_cn: nameCn.trim(),
             name_en: nameEn.trim() || null,
             name_jp: nameJp.trim() || null,
-            type: workType,
+            alias: validAliases.length > 0 ? validAliases : null,
+            type: workTypes, // 改为数组
+            poster_url: posterUrl.trim() || null, // 海报图片
             summary_md: summary.trim() || null,
-            cover_url: coverUrl.trim() || null,
             created_by: user!.id
           }
         ])
@@ -123,10 +193,27 @@ export const SubmitWorkPage: React.FC = () => {
 
       setCreatedWorkId(newWork.id);
       setSuccess(true);
+      
+      // 提交成功后清除缓存
+      localStorage.removeItem('work_draft');
     } catch (err: any) {
       setError(err.message || 'An error occurred');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const clearDraft = () => {
+    if (confirm('确定要清除草稿吗？所有未保存的信息将丢失。')) {
+      localStorage.removeItem('work_draft');
+      setNameCn('');
+      setNameEn('');
+      setNameJp('');
+      setAliases(['']);
+      setWorkTypes(['anime']);
+      setPosterUrl('');
+      setSummary('');
+      setCharacters([]);
     }
   };
 
@@ -162,9 +249,22 @@ export const SubmitWorkPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-4xl font-bold mb-2">Submit New Work</h1>
-      <p className="text-gray-400 mb-8">
+      <div className="flex items-start justify-between mb-2">
+        <h1 className="text-4xl font-bold">Submit New Work</h1>
+        <button
+          onClick={clearDraft}
+          className="text-sm text-gray-400 hover:text-red-400 transition-colors flex items-center gap-1"
+          title="Clear draft"
+        >
+          <Trash2 className="w-4 h-4" />
+          Clear Draft
+        </button>
+      </div>
+      <p className="text-gray-400 mb-2">
         Add an ACGN work and its characters to the database. All fields are manually filled.
+      </p>
+      <p className="text-xs text-gray-500 mb-8">
+        💾 Your progress is automatically saved. You can close this page and come back later.
       </p>
 
       {error && (
@@ -222,18 +322,61 @@ export const SubmitWorkPage: React.FC = () => {
               </div>
             </div>
 
+            {/* Aliases Section */}
+            <div>
+              <label className="block text-sm font-medium mb-2 text-gray-300">
+                Aliases / Other Names (Optional)
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Add alternative names or translations for this work
+              </p>
+              <div className="space-y-2">
+                {aliases.map((alias, index) => (
+                  <div key={index} className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={alias}
+                      onChange={(e) => updateAlias(index, e.target.value)}
+                      placeholder={`Alias ${index + 1}`}
+                      className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary"
+                    />
+                    {aliases.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAlias(index)}
+                        className="text-gray-400 hover:text-red-500 transition-colors p-2"
+                        title="Remove Alias"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={addAlias}
+                  className="w-full bg-white/5 text-gray-300 font-medium py-2 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center gap-2 border border-white/10"
+                >
+                  <Plus className="w-4 h-4" /> Add Alias
+                </button>
+              </div>
+            </div>
+
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-300">
                 Work Type <span className="text-red-400">*</span>
               </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Select one or more types (e.g., a work can be both anime and manga)
+              </p>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {(['anime', 'manga', 'game', 'novel'] as const).map((type) => (
                   <button
                     key={type}
                     type="button"
-                    onClick={() => setWorkType(type)}
+                    onClick={() => toggleWorkType(type)}
                     className={`px-4 py-3 rounded-lg font-medium transition-all ${
-                      workType === type
+                      workTypes.includes(type)
                         ? 'bg-eva-secondary text-eva-bg'
                         : 'bg-black/30 border border-white/10 text-gray-400 hover:text-white'
                     }`}
@@ -242,25 +385,43 @@ export const SubmitWorkPage: React.FC = () => {
                   </button>
                 ))}
               </div>
+              {workTypes.length > 0 && (
+                <p className="mt-2 text-xs text-gray-400">
+                  Selected: {workTypes.join(', ')}
+                </p>
+              )}
             </div>
 
+            {/* Poster/Cover Image */}
             <div>
               <label className="block text-sm font-medium mb-2 text-gray-300">
-                Cover Image URL
+                Poster / Cover Image URL
               </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Paste a URL to the poster or cover image (e.g., from Imgur, Wikipedia)
+              </p>
               <div className="flex gap-2">
                 <ImageIcon className="w-10 h-10 text-gray-500 flex-shrink-0" />
                 <input
                   type="url"
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  placeholder="https://example.com/cover.jpg"
+                  value={posterUrl}
+                  onChange={(e) => setPosterUrl(e.target.value)}
+                  placeholder="https://example.com/poster.jpg"
                   className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
                 />
               </div>
-              <p className="mt-1 text-xs text-gray-500">
-                Paste an image URL from Imgur, Wikipedia, or other image hosting services
-              </p>
+              {posterUrl && (
+                <div className="mt-4 flex justify-center">
+                  <img
+                    src={posterUrl}
+                    alt="Poster Preview"
+                    className="max-h-64 w-auto object-contain rounded-lg border border-white/10"
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                    }}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
@@ -362,8 +523,8 @@ export const SubmitWorkPage: React.FC = () => {
                   </div>
 
                   <div className="mt-3">
-                    <label className="block text-xs font-medium mb-1 text-gray-400">
-                      Avatar Image URL
+                    <label className="block text-xs font-medium mb-1 text-gray-400 flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4" /> Character Image URL
                     </label>
                     <input
                       type="url"
@@ -374,6 +535,18 @@ export const SubmitWorkPage: React.FC = () => {
                       placeholder="https://example.com/character.jpg"
                       className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-eva-secondary"
                     />
+                    {char.avatar_url && (
+                      <div className="mt-2 flex justify-center">
+                        <img
+                          src={char.avatar_url}
+                          alt={char.name_cn || 'Character'}
+                          className="max-h-32 w-auto object-contain rounded border border-white/10"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

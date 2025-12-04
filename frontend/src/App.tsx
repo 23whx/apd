@@ -8,7 +8,12 @@ import { WorkDetailPage } from './pages/WorkDetailPage';
 import { CharacterDetailPage } from './pages/CharacterDetailPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { SubmitWorkPage } from './pages/SubmitWorkPage';
+import { SubmitCharacterPage } from './pages/SubmitCharacterPage';
 import { AdminPage } from './pages/AdminPage';
+import { AdminWorksPage } from './pages/AdminWorksPage';
+import { AdminCharactersPage } from './pages/AdminCharactersPage';
+import { EditWorkPage } from './pages/EditWorkPage';
+import { EditCharacterPage } from './pages/EditCharacterPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import './lib/i18n';
 
@@ -23,10 +28,15 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/works" element={<WorksPage />} />
               <Route path="/works/:id" element={<WorkDetailPage />} />
+              <Route path="/works/:workId/submit-character" element={<SubmitCharacterPage />} />
               <Route path="/characters/:id" element={<CharacterDetailPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/submit" element={<SubmitWorkPage />} />
               <Route path="/admin" element={<AdminPage />} />
+              <Route path="/admin/works" element={<AdminWorksPage />} />
+              <Route path="/admin/works/:id/edit" element={<EditWorkPage />} />
+              <Route path="/admin/characters" element={<AdminCharactersPage />} />
+              <Route path="/admin/characters/:id/edit" element={<EditCharacterPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
             </Routes>
           </main>

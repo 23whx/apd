@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Users, FileText, MessageSquare, TrendingUp, Database } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -18,25 +18,39 @@ export const AdminPage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    checkAdminAccess();
-  }, [user]);
+    // 等待 auth 加载完成后再检查权限
+    if (!authLoading) {
+      checkAdminAccess();
+    }
+  }, [user, authLoading]);
 
   const checkAdminAccess = async () => {
     if (!user) {
+      console.log('[Admin Check] No user logged in, redirecting to home');
       navigate('/');
       return;
     }
 
     try {
+      console.log('[Admin Check] Checking user:', user.email, 'ID:', user.id);
+      
       const { data, error } = await supabase
         .from('users')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Admin Check] Database error:', error);
+        alert(`权限检查失败：${error.message}\n\n请确保你的账号已在 users 表中创建。`);
+        navigate('/');
+        return;
+      }
 
-      if (data.role !== 'admin' && data.role !== 'mod') {
+      console.log('[Admin Check] User role:', data?.role);
+
+      if (!data || (data.role !== 'admin' && data.role !== 'mod')) {
+        alert(`访问被拒绝！\n\n当前角色：${data?.role || '未设置'}\n需要角色：admin 或 mod\n\n请联系管理员设置权限。`);
         navigate('/');
         return;
       }
@@ -44,7 +58,8 @@ export const AdminPage: React.FC = () => {
       setIsAdmin(true);
       fetchStats();
     } catch (error) {
-      console.error('Admin check error:', error);
+      console.error('[Admin Check] Unexpected error:', error);
+      alert('权限检查时发生错误，请查看控制台');
       navigate('/');
     }
   };
@@ -74,7 +89,19 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  if (!isAdmin) return null;
+  // 显示加载状态（等待 auth 和权限检查）
+  if (authLoading || !isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary mb-4"></div>
+          <p className="text-gray-400">
+            {authLoading ? 'Loading user...' : 'Checking permissions...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -126,16 +153,26 @@ export const AdminPage: React.FC = () => {
           {/* Quick Actions */}
           <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
             <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <button className="bg-eva-secondary/20 hover:bg-eva-secondary/30 border border-eva-secondary/50 p-4 rounded-lg text-left transition-colors">
-                <h3 className="font-bold mb-1">Review Submissions</h3>
-                <p className="text-sm text-gray-400">Check pending work submissions</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <button 
+                onClick={() => navigate('/admin/works')}
+                className="bg-eva-secondary/20 hover:bg-eva-secondary/30 border border-eva-secondary/50 p-4 rounded-lg text-left transition-colors"
+              >
+                <h3 className="font-bold mb-1">管理作品</h3>
+                <p className="text-sm text-gray-400">编辑或删除作品</p>
               </button>
-              <button className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 p-4 rounded-lg text-left transition-colors">
+              <button 
+                onClick={() => navigate('/admin/characters')}
+                className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 p-4 rounded-lg text-left transition-colors"
+              >
+                <h3 className="font-bold mb-1">管理角色</h3>
+                <p className="text-sm text-gray-400">编辑或删除角色</p>
+              </button>
+              <button className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 p-4 rounded-lg text-left transition-colors">
                 <h3 className="font-bold mb-1">Moderate Comments</h3>
                 <p className="text-sm text-gray-400">Review flagged comments</p>
               </button>
-              <button className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 p-4 rounded-lg text-left transition-colors">
+              <button className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 p-4 rounded-lg text-left transition-colors">
                 <h3 className="font-bold mb-1">Manage Users</h3>
                 <p className="text-sm text-gray-400">User roles and permissions</p>
               </button>

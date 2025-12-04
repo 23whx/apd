@@ -116,12 +116,12 @@ export const CharacterDetailPage: React.FC = () => {
         {/* Left Column: Character Info */}
         <div className="lg:col-span-1">
           <div className="bg-eva-surface border border-white/10 rounded-xl p-6 sticky top-20">
-            <div className="aspect-square bg-gray-800 rounded-lg mb-4 overflow-hidden">
+            <div className="aspect-square bg-gray-800 rounded-lg mb-4 overflow-hidden flex items-center justify-center">
               {character.avatar_url ? (
                 <img
                   src={character.avatar_url}
                   alt={character.name_cn}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-6xl text-gray-600">

@@ -15,7 +15,14 @@ export const Navbar: React.FC = () => {
 
   useEffect(() => {
     if (user) {
+      // 立即设置一个默认值（邮箱前缀），避免显示空白
+      const fallbackName = user.email?.split('@')[0] || 'User';
+      setDisplayName(fallbackName);
+      
+      // 然后异步获取完整的用户信息
       fetchUserProfile();
+    } else {
+      setDisplayName('');
     }
   }, [user]);
 
@@ -23,18 +30,28 @@ export const Navbar: React.FC = () => {
     if (!user) return;
     
     try {
-      const { data } = await supabase
+      console.log('[Navbar] Fetching profile for:', user.email);
+      
+      const { data, error } = await supabase
         .from('users')
         .select('display_name, username')
         .eq('id', user.id)
         .single();
 
+      if (error) {
+        console.warn('[Navbar] Failed to fetch user profile:', error.message);
+        // 保持使用邮箱前缀
+        return;
+      }
+
       if (data) {
-        setDisplayName(data.display_name || data.username || user.email?.split('@')[0] || 'User');
+        const name = data.display_name || data.username || user.email?.split('@')[0] || 'User';
+        console.log('[Navbar] Profile loaded:', name);
+        setDisplayName(name);
       }
     } catch (error) {
-      // Fallback to email if profile fetch fails
-      setDisplayName(user.email?.split('@')[0] || 'User');
+      console.warn('[Navbar] Error fetching user profile:', error);
+      // 保持使用邮箱前缀
     }
   };
 

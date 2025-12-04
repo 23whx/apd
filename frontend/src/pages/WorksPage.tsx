@@ -94,11 +94,24 @@ export const WorksPage: React.FC = () => {
               to={`/works/${work.id}`}
               className="group bg-eva-surface border border-white/5 rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300"
             >
-              <div className="h-48 bg-gray-800 relative">
+              <div className="h-48 bg-gray-800 relative overflow-hidden">
+                {work.poster_url ? (
+                  <img
+                    src={work.poster_url}
+                    alt={work.name_cn}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-800"></div>
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-eva-surface to-transparent opacity-80"></div>
-                <span className="absolute top-4 right-4 bg-black/50 backdrop-blur text-xs px-2 py-1 rounded text-white border border-white/10">
-                  {t(`workTypes.${work.type}`)}
-                </span>
+                <div className="absolute top-4 right-4 flex gap-1 flex-wrap justify-end">
+                  {(Array.isArray(work.type) ? work.type : [work.type]).map((type) => (
+                    <span key={type} className="bg-black/50 backdrop-blur text-xs px-2 py-1 rounded text-white border border-white/10">
+                      {t(`workTypes.${type}`)}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-bold text-white mb-1 group-hover:text-eva-secondary transition-colors line-clamp-1">

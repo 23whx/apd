@@ -38,19 +38,21 @@ export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
     setSearchResults([]);
 
     try {
-      // 只在数据库中模糊搜索
-      const { data, error: searchError } = await supabase
-        .from('works')
-        .select('id, name_cn, name_en, name_jp, type, cover_url')
-        .or(`name_cn.ilike.%${query}%,name_en.ilike.%${query}%,name_jp.ilike.%${query}%`)
-        .limit(10);
+      // 使用 RPC 函数搜索
+      const { data: results, error: searchError } = await supabase.rpc('search_works', {
+        search_query: query
+      }) as { data: any[] | null; error: any };
 
-      if (searchError) throw searchError;
+      if (searchError) {
+        console.error('Search error:', searchError);
+        setError('搜索失败，请确保已在 Supabase 中创建搜索函数（参考 SUPABASE_SETUP_SEARCH.md）');
+        setLoading(false);
+        return;
+      }
 
-      if (data && data.length > 0) {
-        setSearchResults(data);
+      if (results && results.length > 0) {
+        setSearchResults(results);
       } else {
-        // 没有找到，提示用户去提交
         setError('No matching works found. Would you like to submit this work?');
       }
     } catch (err: any) {
@@ -126,21 +128,12 @@ export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
                   navigate(`/works/${work.id}`);
                   onClose();
                 }}
-                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 text-left transition-colors flex items-center gap-4"
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 text-left transition-colors"
               >
-                {work.cover_url && (
-                  <img
-                    src={work.cover_url}
-                    alt={work.name_cn}
-                    className="w-16 h-16 object-cover rounded"
-                  />
-                )}
-                <div className="flex-1">
-                  <p className="font-bold text-lg">{work.name_cn}</p>
-                  <p className="text-sm text-gray-400">
-                    {work.name_en || 'N/A'} • {work.type}
-                  </p>
-                </div>
+                <p className="font-bold text-lg">{work.name_cn}</p>
+                <p className="text-sm text-gray-400">
+                  {work.name_en || 'N/A'} • {Array.isArray(work.type) ? work.type.join(', ') : work.type}
+                </p>
               </button>
             ))}
           </div>
