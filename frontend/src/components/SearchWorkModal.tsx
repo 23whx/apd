@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Search, Loader2, AlertCircle, CheckCircle, Database, Sparkles } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { X, Search, Loader2, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
 
 interface SearchWorkModalProps {
   isOpen: boolean;
@@ -9,29 +9,22 @@ interface SearchWorkModalProps {
   initialQuery?: string;
 }
 
-type Step = 'input' | 'searching' | 'disambiguating' | 'scraping' | 'success' | 'duplicate';
-
 export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
   isOpen,
   onClose,
   initialQuery = '',
 }) => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const [query, setQuery] = useState(initialQuery);
-  const [step, setStep] = useState<Step>('input');
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [candidates, setCandidates] = useState<any[]>([]);
-  const [result, setResult] = useState<any>(null);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
-  // 每次打开弹窗时同步外层输入框的内容
   useEffect(() => {
     if (isOpen) {
       setQuery(initialQuery);
-      setStep('input');
+      setSearchResults([]);
       setError('');
-      setCandidates([]);
-      setResult(null);
     }
   }, [isOpen, initialQuery]);
 
@@ -39,75 +32,37 @@ export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
 
   const handleSearch = async () => {
     if (!query.trim()) return;
+    
+    setLoading(true);
     setError('');
-    setStep('searching');
+    setSearchResults([]);
 
     try {
-      // Step 1: 数据库模糊查询
-      const searchResponse = await fetch('/api/search-work', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query })
-      });
-      
-      if (!searchResponse.ok) throw new Error('Search failed');
-      const searchData = await searchResponse.json();
+      // 只在数据库中模糊搜索
+      const { data, error: searchError } = await supabase
+        .from('works')
+        .select('id, name_cn, name_en, name_jp, type, cover_url')
+        .or(`name_cn.ilike.%${query}%,name_en.ilike.%${query}%,name_jp.ilike.%${query}%`)
+        .limit(10);
 
-      if (searchData.found) {
-        // 找到相似作品，需要用户确认或消歧
-        setCandidates(searchData.candidates);
-        setStep('disambiguating');
-        
-        // 调用 LLM 消歧
-        const disambigResponse = await fetch('/api/disambiguate-work', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query, candidates: searchData.candidates })
-        });
+      if (searchError) throw searchError;
 
-        if (!disambigResponse.ok) throw new Error('Disambiguation failed');
-        const disambigData = await disambigResponse.json();
-
-        if (disambigData.isDuplicate && disambigData.confidence > 0.7) {
-          setStep('duplicate');
-          setError(`This work already exists: ${disambigData.reason}`);
-          return;
-        }
+      if (data && data.length > 0) {
+        setSearchResults(data);
+      } else {
+        // 没有找到，提示用户去提交
+        setError('No matching works found. Would you like to submit this work?');
       }
-
-      // Step 2: 确认是新作品，开始抓取
-      setStep('scraping');
-      const scrapeResponse = await fetch('/api/scrape-work-info', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workName: query, userId: user?.id ?? null })
-      });
-
-      if (!scrapeResponse.ok) throw new Error('Scraping failed');
-      const scrapeData = await scrapeResponse.json();
-
-      setResult(scrapeData);
-      setStep('success');
-
     } catch (err: any) {
-      setError(err.message || 'An error occurred');
-      setStep('input');
+      setError(err.message || 'Search failed');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleReset = () => {
-    setQuery('');
-    setStep('input');
-    setError('');
-    setCandidates([]);
-    setResult(null);
-  };
-
-  const handleViewWork = () => {
-    if (result && result.work) {
-      navigate(`/works/${result.work.id}`);
-      onClose();
-    }
+  const handleSubmitNew = () => {
+    onClose();
+    navigate('/submit', { state: { workName: query } });
   };
 
   return (
@@ -125,159 +80,88 @@ export const SearchWorkModal: React.FC<SearchWorkModalProps> = ({
           Search ACGN Work
         </h2>
 
-        {error && step !== 'duplicate' && (
-          <div className="mb-4 bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-            <span>{error}</span>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-2 text-gray-300">
+              Work Name (中/英/日 any language)
+            </label>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="e.g., 进击的巨人 / Attack on Titan"
+              className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+              autoFocus
+            />
           </div>
-        )}
 
-        {step === 'input' && (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2 text-gray-300">
-                Work Name (中/英/日 any language)
-              </label>
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                placeholder="e.g., 新世纪エヴァンゲリオン / Evangelion"
-                className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
-                autoFocus
-              />
-            </div>
-
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
-              <h3 className="font-bold text-blue-400 mb-2 flex items-center gap-2">
-                <Sparkles className="w-4 h-4" />
-                What happens next?
-              </h3>
-              <ol className="text-sm text-gray-300 space-y-1 list-decimal list-inside">
-                <li>Database fuzzy search for similar works</li>
-                <li>AI disambiguation (DeepSeek) to avoid duplicates</li>
-                <li>Auto-scrape from 萌娘百科, Wikipedia, 百度百科 (Firecrawl)</li>
-                <li>Extract characters and create entries</li>
-              </ol>
-            </div>
-
-            <button
-              onClick={handleSearch}
-              disabled={!query.trim()}
-              className="w-full bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              <Search className="w-5 h-5" />
-              Search & Create
-            </button>
-          </div>
-        )}
-
-        {step === 'searching' && (
-          <div className="text-center py-12">
-            <Database className="w-16 h-16 text-eva-secondary mx-auto mb-4 animate-pulse" />
-            <p className="text-lg font-medium">Searching database...</p>
-            <p className="text-sm text-gray-400 mt-2">Checking for similar works</p>
-          </div>
-        )}
-
-        {step === 'disambiguating' && (
-          <div className="text-center py-12">
-            <Sparkles className="w-16 h-16 text-eva-accent mx-auto mb-4 animate-pulse" />
-            <p className="text-lg font-medium">AI Disambiguation...</p>
-            <p className="text-sm text-gray-400 mt-2">DeepSeek is checking if this is a duplicate</p>
-            {candidates.length > 0 && (
-              <div className="mt-4 text-left bg-white/5 rounded-lg p-4">
-                <p className="text-sm text-gray-300 mb-2">Similar works found:</p>
-                <ul className="text-sm space-y-1">
-                  {candidates.map((c, i) => (
-                    <li key={i} className="text-gray-400">
-                      • {c.name_cn} ({c.name_en || 'N/A'}) - {c.type}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+          <button
+            onClick={handleSearch}
+            disabled={loading || !query.trim()}
+            className="w-full bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="w-5 h-5" />
+                Search
+              </>
             )}
+          </button>
+        </div>
+
+        {/* 搜索结果 */}
+        {searchResults.length > 0 && (
+          <div className="mt-6 space-y-3">
+            <h3 className="font-bold text-lg">Search Results:</h3>
+            {searchResults.map((work) => (
+              <button
+                key={work.id}
+                onClick={() => {
+                  navigate(`/works/${work.id}`);
+                  onClose();
+                }}
+                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-4 text-left transition-colors flex items-center gap-4"
+              >
+                {work.cover_url && (
+                  <img
+                    src={work.cover_url}
+                    alt={work.name_cn}
+                    className="w-16 h-16 object-cover rounded"
+                  />
+                )}
+                <div className="flex-1">
+                  <p className="font-bold text-lg">{work.name_cn}</p>
+                  <p className="text-sm text-gray-400">
+                    {work.name_en || 'N/A'} • {work.type}
+                  </p>
+                </div>
+              </button>
+            ))}
           </div>
         )}
 
-        {step === 'scraping' && (
-          <div className="text-center py-12">
-            <Loader2 className="w-16 h-16 text-eva-secondary mx-auto mb-4 animate-spin" />
-            <p className="text-lg font-medium">Scraping wikis...</p>
-            <p className="text-sm text-gray-400 mt-2">Fetching data from 萌娘百科, Wikipedia, 百度百科</p>
-            <p className="text-xs text-gray-500 mt-4">This may take 10-30 seconds</p>
-          </div>
-        )}
-
-        {step === 'duplicate' && (
-          <div className="text-center py-8">
-            <AlertCircle className="w-16 h-16 text-yellow-400 mx-auto mb-4" />
-            <p className="text-lg font-medium text-yellow-400">Duplicate Detected</p>
-            <p className="text-sm text-gray-300 mt-2">{error}</p>
-            {candidates.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm text-gray-400 mb-2">Existing work:</p>
-                {candidates.map((c, i) => (
-                  <button
-                    key={i}
-                    onClick={() => {
-                      navigate(`/works/${c.id}`);
-                      onClose();
-                    }}
-                    className="block w-full bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-3 text-left transition-colors"
-                  >
-                    <p className="font-medium">{c.name_cn}</p>
-                    <p className="text-sm text-gray-400">{c.name_en || 'N/A'} • {c.type}</p>
-                  </button>
-                ))}
-              </div>
-            )}
+        {/* 没有找到的提示 */}
+        {error && (
+          <div className="mt-6 space-y-4">
+            <div className="bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 px-4 py-3 rounded flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
             <button
-              onClick={handleReset}
-              className="mt-4 text-sm text-eva-secondary hover:underline"
+              onClick={handleSubmitNew}
+              className="w-full bg-eva-accent text-white font-bold py-3 rounded-lg hover:bg-eva-accent/90 transition-colors"
             >
-              Search another work
+              Submit "{query}" as New Work
             </button>
-          </div>
-        )}
-
-        {step === 'success' && result && (
-          <div className="text-center py-8">
-            <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
-            <p className="text-lg font-medium text-green-400">Work Created Successfully!</p>
-            
-            <div className="mt-4 bg-white/5 rounded-lg p-4 text-left">
-              <h3 className="font-bold text-lg mb-2">{result.work.name_cn}</h3>
-              <p className="text-sm text-gray-400">
-                {result.work.name_en || 'N/A'} • {result.work.type}
-              </p>
-              <p className="text-sm text-gray-400 mt-2">
-                {result.charactersCount} characters extracted
-              </p>
-              <p className="text-xs text-gray-500 mt-2">
-                Sources: {result.sources.join(', ')}
-              </p>
-            </div>
-
-            <div className="mt-6 flex gap-3">
-              <button
-                onClick={handleViewWork}
-                className="flex-1 bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors"
-              >
-                View Work
-              </button>
-              <button
-                onClick={handleReset}
-                className="flex-1 bg-white/5 border border-white/10 text-white font-medium py-3 rounded-lg hover:bg-white/10 transition-colors"
-              >
-                Add Another
-              </button>
-            </div>
           </div>
         )}
       </div>
     </div>
   );
 };
-
