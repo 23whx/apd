@@ -55,7 +55,17 @@ export const AdminCharactersPage: React.FC = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCharacters(data || []);
+      
+      // works is returned as an array by Supabase, convert to single object
+      const charactersWithWork = (data || []).map(char => {
+        const characterData = char as any;
+        if (Array.isArray(characterData.works) && characterData.works.length > 0) {
+          characterData.works = characterData.works[0];
+        }
+        return characterData as CharacterWithWork;
+      });
+      
+      setCharacters(charactersWithWork);
     } catch (error) {
       console.error('Error fetching characters:', error);
     } finally {

@@ -75,7 +75,12 @@ export const EditCharacterPage: React.FC = () => {
       } else {
         setAvatarUrl(existingAvatar || '');
       }
-      setWorkName(characterData.works?.name_cn || '');
+      
+      // works is returned as an array by Supabase, get the first item
+      const works = Array.isArray(characterData.works) && characterData.works.length > 0 
+        ? characterData.works[0] 
+        : characterData.works;
+      setWorkName(works?.name_cn || '');
     } catch (error: any) {
       setError(error.message || 'Failed to load character');
     } finally {

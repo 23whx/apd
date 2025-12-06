@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import type { Character, Work, VoteStatistics } from '../lib/types';
+import type { Character, VoteStatistics } from '../lib/types';
 import { ArrowLeft, ExternalLink, TrendingUp } from 'lucide-react';
 import { VotePanel } from '../components/VotePanel';
 import { VoteChart } from '../components/VoteChart';
