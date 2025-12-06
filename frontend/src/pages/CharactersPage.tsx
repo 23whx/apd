@@ -70,8 +70,12 @@ export const CharactersPage: React.FC = () => {
         const charsWithPersonality = chars.map(char => {
           const charVotes = votesData?.filter(v => v.character_id === char.id) || [];
           
+          // works is returned as an array by Supabase, get the first item
+          const works = Array.isArray(char.works) && char.works.length > 0 ? char.works[0] : char.works;
+          
           return {
             ...char,
+            works,
             top_mbti: getTopVote(charVotes, 'mbti'),
             top_enneagram: getTopVote(charVotes, 'enneagram'),
             top_subtype: getTopVote(charVotes, 'subtype'),
@@ -81,7 +85,10 @@ export const CharactersPage: React.FC = () => {
 
         setCharacters(charsWithPersonality);
       } else {
-        setCharacters(chars as Character[]);
+        setCharacters(chars.map(char => {
+          const works = Array.isArray(char.works) && char.works.length > 0 ? char.works[0] : char.works;
+          return { ...char, works } as Character;
+        }));
       }
     } catch (err: any) {
       console.error('Error fetching characters:', err);

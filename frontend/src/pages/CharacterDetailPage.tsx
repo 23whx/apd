@@ -10,7 +10,12 @@ import { VoteChart } from '../components/VoteChart';
 import { CommentSection } from '../components/CommentSection';
 
 interface CharacterWithWork extends Character {
-  works?: Work;
+  works?: {
+    id: string;
+    name_cn: string;
+    name_en?: string;
+    name_jp?: string;
+  };
 }
 
 export const CharacterDetailPage: React.FC = () => {
@@ -64,7 +69,12 @@ export const CharacterDetailPage: React.FC = () => {
         console.error('Error fetching character:', error);
         return;
       }
-      setCharacter(data as CharacterWithWork);
+      // works is returned as an array by Supabase, get the first item
+      const characterData = data as any;
+      if (characterData && Array.isArray(characterData.works) && characterData.works.length > 0) {
+        characterData.works = characterData.works[0];
+      }
+      setCharacter(characterData as CharacterWithWork);
     } catch (error) {
       console.error('Error fetching character:', error);
     }

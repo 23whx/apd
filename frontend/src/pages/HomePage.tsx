@@ -29,7 +29,7 @@ export const HomePage: React.FC = () => {
       // 获取所有作品的投票统计
       const { data: worksData, error: worksError } = await supabase
         .from('works')
-        .select('id, name_cn, name_en, name_jp, type, poster_url')
+        .select('id, name_cn, name_en, name_jp, type, poster_url, created_at')
         .limit(50); // 获取前50个作品
 
       if (worksError) throw worksError;

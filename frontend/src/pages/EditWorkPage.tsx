@@ -4,14 +4,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Save, AlertCircle, ArrowLeft, Image as ImageIcon, Plus, Trash2 } from 'lucide-react';
 
-interface Character {
-  id: string;
-  name_cn: string;
-  name_en: string;
-  name_jp: string;
-  avatar_url: string;
-}
-
 export const EditWorkPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, loading: authLoading } = useAuth();
