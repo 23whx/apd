@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import type { Work, Character } from '../lib/types';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
+import { WorkDetailSkeleton } from '../components/WorkDetailSkeleton';
+import { CommentSection } from '../components/CommentSection';
 
 interface CharacterWithPersonality extends Character {
   top_mbti?: string;
@@ -105,16 +107,7 @@ export const WorkDetailPage: React.FC = () => {
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="h-6 w-32 bg-gray-700 rounded mb-6 animate-pulse"></div>
-        <SkeletonDetail />
-        <div className="mt-8">
-          <div className="h-8 w-48 bg-gray-700 rounded mb-6 animate-pulse"></div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {[...Array(5)].map((_, i) => (
-              <SkeletonCharacterCard key={i} />
-            ))}
-          </div>
-        </div>
+        <WorkDetailSkeleton />
       </div>
     );
   }

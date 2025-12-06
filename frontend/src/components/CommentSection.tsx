@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Send, Loader2, Edit2, Trash2, X, Check } from 'lucide-react';
+import { MessageSquare, Send, Loader2, Edit2, Trash2, X, Check, ArrowUpDown } from 'lucide-react';
 
 interface Comment {
   id: string;
@@ -20,6 +21,7 @@ interface CommentSectionProps {
 }
 
 export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targetId }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
@@ -28,10 +30,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [hasCommented, setHasCommented] = useState(false);
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = 最新在前，asc = 最早在前
 
   useEffect(() => {
     fetchComments();
-  }, [targetId, user]);
+  }, [targetId, user, sortOrder]); // Add sortOrder to dependencies
 
   const fetchComments = async () => {
     setFetchLoading(true);
@@ -42,7 +45,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
         .eq('target_type', targetType)
         .eq('target_id', targetId)
         .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: sortOrder === 'asc' }); // 根据排序顺序
 
       if (error) throw error;
       setComments(data || []);
@@ -144,22 +147,59 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
     }
   };
 
+  // Format date time to precise seconds
+  const formatDateTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  };
+
+  // Sort comments: user's own comment first, then others
+  const sortedComments = React.useMemo(() => {
+    if (!user) return comments;
+    
+    const userComments = comments.filter(c => c.user_id === user.id);
+    const otherComments = comments.filter(c => c.user_id !== user.id);
+    
+    return [...userComments, ...otherComments];
+  }, [comments, user]);
+
   return (
     <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
-      <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-        <MessageSquare className="w-5 h-5 text-eva-secondary" />
-        Comments ({comments.length})
-      </h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-xl font-bold flex items-center gap-2">
+          <MessageSquare className="w-5 h-5 text-eva-secondary" />
+          {t('comments.title')} ({comments.length})
+        </h2>
+        
+        {/* Sort toggle button */}
+        {comments.length > 0 && (
+          <button
+            onClick={() => setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-colors text-sm text-gray-400 hover:text-white"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+            <span>{sortOrder === 'desc' ? t('comments.sortNewest') : t('comments.sortOldest')}</span>
+          </button>
+        )}
+      </div>
 
       {/* Comment form */}
       {user ? (
         hasCommented ? (
           <div className="mb-6 p-4 bg-eva-accent/10 border border-eva-accent/30 rounded-lg text-center">
             <p className="text-eva-accent font-medium">
-              You have already commented. You can edit or delete your comment below.
+              {t('comments.alreadyCommented')}
             </p>
             <p className="text-xs text-gray-400 mt-1">
-              Each user can only comment once per work/character.
+              {t('comments.oncePerTarget')}
             </p>
           </div>
         ) : (
@@ -167,7 +207,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
             <textarea
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Share your thoughts... (You can only comment once)"
+              placeholder={t('comments.placeholder')}
               rows={3}
               className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary resize-none"
             />
@@ -180,12 +220,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Posting...</span>
+                    <span>{t('comments.posting')}</span>
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    <span>Post Comment</span>
+                    <span>{t('comments.postComment')}</span>
                   </>
                 )}
               </button>
@@ -194,7 +234,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
         )
       ) : (
         <div className="mb-6 p-4 bg-white/5 border border-white/10 rounded-lg text-center text-gray-400">
-          Please login to comment
+          {t('comments.loginToComment')}
         </div>
       )}
 
@@ -204,81 +244,130 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-eva-secondary"></div>
         </div>
       ) : comments.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">No comments yet</div>
+        <div className="text-center py-8 text-gray-500">{t('comments.noComments')}</div>
       ) : (
         <div className="space-y-4">
-          {comments.map((comment) => (
-            <div key={comment.id} className="bg-black/20 border border-white/5 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-eva-secondary/20 flex items-center justify-center text-eva-secondary font-bold flex-shrink-0">
-                  {comment.users.avatar_id}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm">{comment.users.username}</span>
-                      <span className="text-xs text-gray-500">
-                        {new Date(comment.created_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    {/* Edit/Delete buttons - only show for own comments */}
-                    {user && user.id === comment.user_id && (
-                      <div className="flex items-center gap-2">
-                        {editingId === comment.id ? (
-                          <>
-                            <button
-                              onClick={() => handleSaveEdit(comment.id)}
-                              className="text-eva-secondary hover:text-eva-secondary/80 transition-colors"
-                              title="Save"
-                            >
-                              <Check className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={handleCancelEdit}
-                              className="text-gray-400 hover:text-white transition-colors"
-                              title="Cancel"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <button
-                              onClick={() => handleEdit(comment)}
-                              className="text-gray-400 hover:text-white transition-colors"
-                              title="Edit"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(comment.id)}
-                              className="text-red-400 hover:text-red-300 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
+          {sortedComments.map((comment, index) => {
+            const isOwnComment = user && comment.user_id === user.id;
+            // 计算序号：根据排序顺序决定
+            const commentNumber = sortOrder === 'desc' 
+              ? comments.length - comments.findIndex(c => c.id === comment.id)
+              : comments.findIndex(c => c.id === comment.id) + 1;
+            
+            return (
+              <div 
+                key={comment.id} 
+                className={`bg-black/20 border rounded-lg p-4 ${
+                  isOwnComment ? 'border-eva-accent/50 bg-eva-accent/5' : 'border-white/5'
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Comment Number */}
+                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-eva-secondary/20 flex items-center justify-center">
+                    <span className="text-eva-secondary font-bold text-sm">#{commentNumber}</span>
                   </div>
                   
-                  {/* Comment content - editable if in edit mode */}
-                  {editingId === comment.id ? (
-                    <textarea
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                      rows={3}
-                      className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-eva-secondary resize-none"
+                  {/* User Avatar */}
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-eva-secondary/30">
+                    <img
+                      src={`/userAvatar/${comment.users.avatar_id.toString().padStart(2, '0')}-${
+                        ['御坂美琴', '夏娜', '立华奏', '亚丝娜', '雪之下雪乃', 
+                         '灰原哀', '时崎狂三', '秋山澪', '波奇', '千早爱音',
+                         '四宫辉夜', '樱岛麻衣', '黑岩射手', '初音未来', '牧濑红莉栖',
+                         '蕾姆', 'Saber', 'CC', '小圆', '春日野穹'][comment.users.avatar_id - 1]
+                      }.png`}
+                      alt={`Avatar ${comment.users.avatar_id}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback: show avatar_id number if image fails to load
+                        const target = e.currentTarget;
+                        target.style.display = 'none';
+                        const parent = target.parentElement;
+                        if (parent && !parent.querySelector('.avatar-fallback')) {
+                          parent.classList.add('bg-eva-secondary/20', 'flex', 'items-center', 'justify-center');
+                          const fallback = document.createElement('span');
+                          fallback.className = 'text-eva-secondary font-bold avatar-fallback';
+                          fallback.textContent = comment.users.avatar_id.toString();
+                          parent.appendChild(fallback);
+                        }
+                      }}
                     />
-                  ) : (
-                    <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.content_md}</p>
-                  )}
+                  </div>
+                  
+                  <div className="flex-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm">
+                          {comment.users.username}
+                          {isOwnComment && (
+                            <span className="ml-2 text-xs bg-eva-accent/20 text-eva-accent px-2 py-0.5 rounded">
+                              {t('comments.you')}
+                            </span>
+                          )}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {formatDateTime(comment.created_at)}
+                        </span>
+                      </div>
+                      
+                      {/* Edit/Delete buttons - only show for own comments */}
+                      {isOwnComment && (
+                        <div className="flex items-center gap-2">
+                          {editingId === comment.id ? (
+                            <>
+                              <button
+                                onClick={() => handleSaveEdit(comment.id)}
+                                className="text-eva-secondary hover:text-eva-secondary/80 transition-colors"
+                                title={t('comments.save')}
+                              >
+                                <Check className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={handleCancelEdit}
+                                className="text-gray-400 hover:text-white transition-colors"
+                                title={t('comments.cancel')}
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </>
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => handleEdit(comment)}
+                                className="text-gray-400 hover:text-white transition-colors"
+                                title={t('comments.edit')}
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(comment.id)}
+                                className="text-red-400 hover:text-red-300 transition-colors"
+                                title={t('comments.delete')}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Comment content - editable if in edit mode */}
+                    {editingId === comment.id ? (
+                      <textarea
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value)}
+                        rows={3}
+                        className="w-full bg-black/30 border border-white/10 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-eva-secondary resize-none"
+                      />
+                    ) : (
+                      <p className="text-gray-300 text-sm whitespace-pre-wrap">{comment.content_md}</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

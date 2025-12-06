@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { MBTI_TYPES, ENNEAGRAM_TYPES, SUBTYPES, YI_HEXAGRAMS } from '../lib/types';
@@ -10,6 +11,7 @@ interface VotePanelProps {
 }
 
 export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit }) => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [mbti, setMbti] = useState<string>('');
   const [enneagram, setEnneagram] = useState<string>('');
@@ -112,7 +114,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
     <div className="bg-eva-surface border border-white/10 rounded-xl p-6 mb-6">
       <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
         <Vote className="w-5 h-5 text-eva-secondary" />
-        {hasVoted ? 'Update Your Vote' : 'Cast Your Vote'}
+        {hasVoted ? t('votePanel.updateVote') : t('votePanel.castVote')}
       </h2>
 
       {message && (
@@ -129,13 +131,13 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* MBTI */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-300">MBTI Type</label>
+          <label className="block text-sm font-medium mb-2 text-gray-300">{t('votePanel.mbtiType')}</label>
           <select
             value={mbti}
             onChange={(e) => setMbti(e.target.value)}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary"
           >
-            <option value="">Select MBTI</option>
+            <option value="">{t('votePanel.selectMbti')}</option>
             {MBTI_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -146,13 +148,13 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
 
         {/* Enneagram */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-300">Enneagram (with wing)</label>
+          <label className="block text-sm font-medium mb-2 text-gray-300">{t('votePanel.enneagramWithWing')}</label>
           <select
             value={enneagram}
             onChange={(e) => setEnneagram(e.target.value)}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary"
           >
-            <option value="">Select Enneagram</option>
+            <option value="">{t('votePanel.selectEnneagram')}</option>
             {ENNEAGRAM_TYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -169,7 +171,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
             onChange={(e) => setSubtype(e.target.value)}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary"
           >
-            <option value="">Select Subtype</option>
+            <option value="">{t('votePanel.selectSubtype')}</option>
             {SUBTYPES.map((type) => (
               <option key={type} value={type}>
                 {type}
@@ -177,19 +179,19 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
             ))}
           </select>
           <p className="mt-1 text-xs text-gray-500">
-            sp = Self-Preservation, sx = Sexual, so = Social
+            {t('votePanel.spNote')}
           </p>
         </div>
 
         {/* Yi Hexagram */}
         <div>
-          <label className="block text-sm font-medium mb-2 text-gray-300">易学六十四卦</label>
+          <label className="block text-sm font-medium mb-2 text-gray-300">{t('votePanel.yiHexagram')}</label>
           <select
             value={yiHexagram}
             onChange={(e) => setYiHexagram(e.target.value)}
             className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary"
           >
-            <option value="">选择卦象</option>
+            <option value="">{t('votePanel.selectYiHexagram')}</option>
             {YI_HEXAGRAMS.map((hex) => (
               <option key={hex.id} value={`${hex.name_cn}${hex.symbol}`}>
                 {hex.symbol} {hex.name_cn} - {hex.type}
@@ -205,11 +207,11 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
           className="w-full bg-eva-secondary text-eva-bg font-bold py-2.5 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-          {loading ? 'Submitting...' : (hasVoted ? 'Update Vote' : 'Submit Vote')}
+          {loading ? t('votePanel.submitting') : (hasVoted ? t('votePanel.updateButton') : t('votePanel.submitVote'))}
         </button>
 
         <p className="text-xs text-gray-500 text-center">
-          You can vote for one or multiple personality types
+          {t('votePanel.voteTip')}
         </p>
       </form>
     </div>

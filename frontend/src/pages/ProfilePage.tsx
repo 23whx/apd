@@ -16,6 +16,7 @@ export const ProfilePage: React.FC = () => {
   const [displayName, setDisplayName] = useState('');
   const [avatarId, setAvatarId] = useState(1);
   const [message, setMessage] = useState('');
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Activity stats
   const [worksSubmitted, setWorksSubmitted] = useState(0);
@@ -87,22 +88,34 @@ export const ProfilePage: React.FC = () => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('[ProfilePage] handleSave called');
+    console.log('[ProfilePage] Current values:', { username, displayName, avatarId });
+    
     setLoading(true);
     setMessage('');
 
     try {
-      const { error } = await supabase
+      console.log('[ProfilePage] Updating user profile...');
+      const { error, data } = await supabase
         .from('users')
         .update({
           username,
           display_name: displayName,
           avatar_id: avatarId
         })
-        .eq('id', user!.id);
+        .eq('id', user!.id)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('[ProfilePage] Update error:', error);
+        throw error;
+      }
 
-      setMessage(t('profile.updateSuccess') || 'Profile updated successfully!');
+      console.log('[ProfilePage] Update successful', data);
+      
+      // 显示成功弹框
+      setShowSuccessModal(true);
+      console.log('[ProfilePage] Success modal shown');
 
       // 通知全局（例如 Navbar）刷新显示名称
       try {
@@ -114,13 +127,17 @@ export const ProfilePage: React.FC = () => {
             }
           })
         );
+        console.log('[ProfilePage] Profile-updated event dispatched');
       } catch {
         // 在某些环境下 window 可能不可用，忽略即可
       }
+
     } catch (error: any) {
-      setMessage(`Error: ${error.message}`);
+      console.error('[ProfilePage] Save failed:', error);
+      setMessage(`❌ ${t('common.error') || '错误'}: ${error.message}`);
     } finally {
       setLoading(false);
+      console.log('[ProfilePage] handleSave completed');
     }
   };
 
@@ -134,7 +151,7 @@ export const ProfilePage: React.FC = () => {
         {message && (
           <div
             className={`mb-6 px-4 py-3 rounded text-sm ${
-              message.includes('Error')
+              message.includes('Error') || message.includes('error')
                 ? 'bg-red-500/10 border border-red-500/50 text-red-400'
                 : 'bg-green-500/10 border border-green-500/50 text-green-400'
             }`}
@@ -192,20 +209,32 @@ export const ProfilePage: React.FC = () => {
               {t('profile.chooseAvatar') || 'Choose Avatar (Preset)'}
             </label>
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
-              {PRESET_AVATARS.map((id) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setAvatarId(id)}
-                  className={`aspect-square rounded-lg flex items-center justify-center font-bold text-lg transition-all ${
-                    avatarId === id
-                      ? 'bg-eva-secondary text-eva-bg ring-2 ring-eva-secondary'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  {id}
-                </button>
-              ))}
+              {PRESET_AVATARS.map((id) => {
+                const paddedId = id.toString().padStart(2, '0');
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => setAvatarId(id)}
+                    className={`aspect-square rounded-lg overflow-hidden transition-all border-2 ${
+                      avatarId === id
+                        ? 'border-eva-secondary ring-2 ring-eva-secondary'
+                        : 'border-gray-700 hover:border-gray-600'
+                    }`}
+                  >
+                    <img
+                      src={`/userAvatar/${paddedId}-${
+                        ['御坂美琴', '夏娜', '立华奏', '亚丝娜', '雪之下雪乃', 
+                         '灰原哀', '时崎狂三', '秋山澪', '波奇', '千早爱音',
+                         '四宫辉夜', '樱岛麻衣', '黑岩射手', '初音未来', '牧濑红莉栖',
+                         '蕾姆', 'Saber', 'CC', '小圆', '春日野穹'][id - 1]
+                      }.png`}
+                      alt={`Avatar ${id}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                );
+              })}
             </div>
             <p className="mt-2 text-xs text-gray-500">
               {t('profile.selectedAvatar') || 'Selected Avatar'}: <span className="text-eva-secondary font-bold">{avatarId}</span>
@@ -265,6 +294,38 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-eva-surface border border-eva-secondary/50 rounded-xl max-w-md w-full p-8 relative shadow-2xl animate-scaleIn">
+            {/* 成功图标 */}
+            <div className="w-16 h-16 bg-eva-secondary/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-eva-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            
+            {/* 标题 */}
+            <h3 className="text-2xl font-bold text-white text-center mb-2">
+              {t('profile.updateSuccess') || '修改成功'}
+            </h3>
+            
+            {/* 描述 */}
+            <p className="text-gray-400 text-center mb-6">
+              {t('profile.updateSuccessDesc') || '您的个人资料已成功更新！'}
+            </p>
+            
+            {/* 关闭按钮 */}
+            <button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors"
+            >
+              {t('common.confirm') || '确定'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
