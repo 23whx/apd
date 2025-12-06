@@ -64,7 +64,7 @@ export const CharacterDetailPage: React.FC = () => {
         console.error('Error fetching character:', error);
         return;
       }
-      setCharacter(data);
+      setCharacter(data as CharacterWithWork);
     } catch (error) {
       console.error('Error fetching character:', error);
     }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, X, AlertCircle, CheckCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Plus, AlertCircle, CheckCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface Character {
   id: string;

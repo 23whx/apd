@@ -31,9 +31,6 @@ export const EditWorkPage: React.FC = () => {
   const [posterUrl, setPosterUrl] = useState('');
   const [summary, setSummary] = useState('');
 
-  // 角色列表
-  const [characters, setCharacters] = useState<Character[]>([]);
-
   useEffect(() => {
     if (!authLoading) {
       checkAdminStatus();
@@ -74,15 +71,6 @@ export const EditWorkPage: React.FC = () => {
       setWorkTypes(Array.isArray(workData.type) ? workData.type : [workData.type]);
       setPosterUrl(workData.poster_url || '');
       setSummary(workData.summary_md || '');
-
-      // 获取角色列表
-      const { data: charactersData, error: charactersError } = await supabase
-        .from('characters')
-        .select('*')
-        .eq('work_id', id);
-
-      if (charactersError) throw charactersError;
-      setCharacters(charactersData || []);
     } catch (error: any) {
       setError(error.message || 'Failed to load work');
     } finally {

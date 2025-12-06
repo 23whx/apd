@@ -19,7 +19,6 @@ export const EditCharacterPage: React.FC = () => {
   const [nameEn, setNameEn] = useState('');
   const [nameJp, setNameJp] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
-  const [workId, setWorkId] = useState('');
   const [workName, setWorkName] = useState('');
 
   useEffect(() => {
@@ -76,7 +75,6 @@ export const EditCharacterPage: React.FC = () => {
       } else {
         setAvatarUrl(existingAvatar || '');
       }
-      setWorkId(characterData.work_id);
       setWorkName(characterData.works?.name_cn || '');
     } catch (error: any) {
       setError(error.message || 'Failed to load character');

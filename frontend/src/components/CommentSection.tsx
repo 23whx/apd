@@ -247,7 +247,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
         <div className="text-center py-8 text-gray-500">{t('comments.noComments')}</div>
       ) : (
         <div className="space-y-4">
-          {sortedComments.map((comment, index) => {
+          {sortedComments.map((comment) => {
             const isOwnComment = user && comment.user_id === user.id;
             // 计算序号：根据排序顺序决定
             const commentNumber = sortOrder === 'desc' 

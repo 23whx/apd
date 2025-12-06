@@ -69,7 +69,8 @@ export const HomePage: React.FC = () => {
           return {
             ...work,
             character_count: characterCount,
-            vote_count: voteCount
+            vote_count: voteCount,
+            created_at: work.created_at || new Date().toISOString()
           };
         });
 
@@ -83,7 +84,7 @@ export const HomePage: React.FC = () => {
 
         topVoted.forEach(work => {
           if (!seenIds.has(work.id)) {
-            uniqueWorks.push(work);
+            uniqueWorks.push(work as TrendingWork);
             seenIds.add(work.id);
           }
         });
@@ -94,7 +95,8 @@ export const HomePage: React.FC = () => {
         setTrendingWorks(worksData.slice(0, 3).map(w => ({
           ...w,
           character_count: 0,
-          vote_count: 0
+          vote_count: 0,
+          created_at: w.created_at || new Date().toISOString()
         })));
       }
     } catch (error) {

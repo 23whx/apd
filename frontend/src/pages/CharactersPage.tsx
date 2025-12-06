@@ -76,12 +76,12 @@ export const CharactersPage: React.FC = () => {
             top_enneagram: getTopVote(charVotes, 'enneagram'),
             top_subtype: getTopVote(charVotes, 'subtype'),
             top_yi: getTopVote(charVotes, 'yi_hexagram')
-          };
+          } as Character;
         });
 
         setCharacters(charsWithPersonality);
       } else {
-        setCharacters(chars);
+        setCharacters(chars as Character[]);
       }
     } catch (err: any) {
       console.error('Error fetching characters:', err);

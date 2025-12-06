@@ -6,7 +6,6 @@ import { supabase } from '../lib/supabase';
 import type { Work, Character } from '../lib/types';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 import { WorkDetailSkeleton } from '../components/WorkDetailSkeleton';
-import { CommentSection } from '../components/CommentSection';
 
 interface CharacterWithPersonality extends Character {
   top_mbti?: string;
