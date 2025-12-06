@@ -97,15 +97,24 @@ export const WorkDetailPage: React.FC = () => {
   };
 
   const getWorkName = (work: Work) => {
-    if (i18n.language === 'zh') return work.name_cn;
-    if (i18n.language === 'ja' && work.name_jp) return work.name_jp;
-    return work.name_en || work.name_cn;
+    if (i18n.language === 'zh') return work.name_cn || work.name_en || work.name_jp || 'Unknown';
+    if (i18n.language === 'ja') return work.name_jp || work.name_en || work.name_cn || 'Unknown';
+    return work.name_en || work.name_cn || work.name_jp || 'Unknown';
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary"></div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="h-6 w-32 bg-gray-700 rounded mb-6 animate-pulse"></div>
+        <SkeletonDetail />
+        <div className="mt-8">
+          <div className="h-8 w-48 bg-gray-700 rounded mb-6 animate-pulse"></div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {[...Array(5)].map((_, i) => (
+              <SkeletonCharacterCard key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

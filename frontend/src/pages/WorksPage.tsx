@@ -4,9 +4,10 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { Search } from 'lucide-react';
+import { SkeletonWorkCard } from '../components/Skeleton';
 
 export const WorksPage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'anime' | 'manga' | 'game' | 'novel'>('all');
@@ -33,6 +34,12 @@ export const WorksPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const getWorkName = (work: Work) => {
+    if (i18n.language === 'zh') return work.name_cn || work.name_en || work.name_jp || 'Unknown';
+    if (i18n.language === 'ja') return work.name_jp || work.name_en || work.name_cn || 'Unknown';
+    return work.name_en || work.name_cn || work.name_jp || 'Unknown';
   };
 
   // Filter works by type and search query in frontend
@@ -92,8 +99,10 @@ export const WorksPage: React.FC = () => {
 
       {/* Works Grid */}
       {loading ? (
-        <div className="text-center py-12">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary"></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <SkeletonWorkCard key={i} />
+          ))}
         </div>
       ) : filteredWorks.length === 0 ? (
         <div className="text-center py-12 text-gray-400">No works found</div>
@@ -109,7 +118,7 @@ export const WorksPage: React.FC = () => {
                 {work.poster_url ? (
                   <img
                     src={work.poster_url}
-                    alt={work.name_cn}
+                    alt={getWorkName(work)}
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -126,9 +135,13 @@ export const WorksPage: React.FC = () => {
               </div>
               <div className="p-4">
                 <h3 className="text-lg font-bold text-white mb-1 group-hover:text-eva-secondary transition-colors line-clamp-1">
-                  {work.name_cn}
+                  {getWorkName(work)}
                 </h3>
-                {work.name_en && (
+                {/* Display alternative name as subtitle */}
+                {i18n.language !== 'zh' && work.name_cn && (
+                  <p className="text-sm text-gray-400 line-clamp-1">{work.name_cn}</p>
+                )}
+                {i18n.language === 'zh' && work.name_en && (
                   <p className="text-sm text-gray-400 line-clamp-1">{work.name_en}</p>
                 )}
               </div>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
-import { Search, Loader2, Users } from 'lucide-react';
+import { Search, Users } from 'lucide-react';
+import { SkeletonCharacterCard, SkeletonStats } from '../components/Skeleton';
 
 interface Character {
   id: string;
@@ -106,15 +107,15 @@ export const CharactersPage: React.FC = () => {
   };
 
   const getCharacterName = (char: Character) => {
-    if (i18n.language === 'zh') return char.name_cn;
-    if (i18n.language === 'ja' && char.name_jp) return char.name_jp;
-    return char.name_en || char.name_cn;
+    if (i18n.language === 'zh') return char.name_cn || char.name_en || char.name_jp || 'Unknown';
+    if (i18n.language === 'ja') return char.name_jp || char.name_en || char.name_cn || 'Unknown';
+    return char.name_en || char.name_cn || char.name_jp || 'Unknown';
   };
 
   const getWorkName = (work: any) => {
     if (!work) return 'Unknown Work';
-    if (i18n.language === 'zh') return work.name_cn;
-    return work.name_en || work.name_cn;
+    if (i18n.language === 'zh') return work.name_cn || work.name_en || 'Unknown Work';
+    return work.name_en || work.name_cn || 'Unknown Work';
   };
 
   const filteredCharacters = characters.filter((char) => {
@@ -130,10 +131,35 @@ export const CharactersPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-eva-secondary mx-auto mb-4" />
-          <p className="text-lg text-gray-400">Loading characters...</p>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex items-center gap-3 mb-8">
+          <Users className="w-8 h-8 text-eva-secondary" />
+          <h1 className="text-4xl font-bold">{t('nav.characters')}</h1>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search characters or works..."
+              disabled
+              className="w-full bg-eva-surface border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-eva-secondary opacity-50"
+            />
+          </div>
+        </div>
+
+        {/* Stats Skeleton */}
+        <div className="mb-8 bg-eva-surface border border-white/10 rounded-xl p-6">
+          <SkeletonStats />
+        </div>
+
+        {/* Characters Grid Skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {[...Array(12)].map((_, i) => (
+            <SkeletonCharacterCard key={i} />
+          ))}
         </div>
       </div>
     );

@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { PRESET_AVATARS } from '../lib/types';
 import { User as UserIcon, Mail, Calendar, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SkeletonStats } from '../components/Skeleton';
 
 export const ProfilePage: React.FC = () => {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -13,6 +16,12 @@ export const ProfilePage: React.FC = () => {
   const [displayName, setDisplayName] = useState('');
   const [avatarId, setAvatarId] = useState(1);
   const [message, setMessage] = useState('');
+  
+  // Activity stats
+  const [worksSubmitted, setWorksSubmitted] = useState(0);
+  const [votesCast, setVotesCast] = useState(0);
+  const [commentsCount, setCommentsCount] = useState(0);
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -20,6 +29,7 @@ export const ProfilePage: React.FC = () => {
       return;
     }
     fetchProfile();
+    fetchActivityStats();
   }, [user]);
 
   const fetchProfile = async () => {
@@ -42,6 +52,39 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
+  const fetchActivityStats = async () => {
+    if (!user) return;
+
+    try {
+      // 获取提交的作品数量
+      const { count: worksCount } = await supabase
+        .from('works')
+        .select('*', { count: 'exact', head: true })
+        .eq('created_by', user.id);
+
+      // 获取投票数量
+      const { count: votesCount } = await supabase
+        .from('personality_votes')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id);
+
+      // 获取评论数量
+      const { count: commentsCountData } = await supabase
+        .from('comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('is_deleted', false);
+
+      setWorksSubmitted(worksCount || 0);
+      setVotesCast(votesCount || 0);
+      setCommentsCount(commentsCountData || 0);
+    } catch (error) {
+      console.error('Error fetching activity stats:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -59,7 +102,7 @@ export const ProfilePage: React.FC = () => {
 
       if (error) throw error;
 
-      setMessage('Profile updated successfully!');
+      setMessage(t('profile.updateSuccess') || 'Profile updated successfully!');
 
       // 通知全局（例如 Navbar）刷新显示名称
       try {
@@ -85,7 +128,7 @@ export const ProfilePage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-4xl font-bold mb-8">Profile Settings</h1>
+      <h1 className="text-4xl font-bold mb-8">{t('profile.title') || 'Profile Settings'}</h1>
 
       <div className="bg-eva-surface border border-white/10 rounded-xl p-8">
         {message && (
@@ -105,7 +148,7 @@ export const ProfilePage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300 flex items-center gap-2">
               <Mail className="w-4 h-4" />
-              Email
+              {t('profile.email') || 'Email'}
             </label>
             <input
               type="email"
@@ -119,7 +162,7 @@ export const ProfilePage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300 flex items-center gap-2">
               <UserIcon className="w-4 h-4" />
-              Username
+              {t('profile.username') || 'Username'}
             </label>
             <input
               type="text"
@@ -133,7 +176,7 @@ export const ProfilePage: React.FC = () => {
           {/* Display Name */}
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300">
-              Display Name
+              {t('profile.displayName') || 'Display Name'}
             </label>
             <input
               type="text"
@@ -146,7 +189,7 @@ export const ProfilePage: React.FC = () => {
           {/* Avatar Selection */}
           <div>
             <label className="block text-sm font-medium mb-4 text-gray-300">
-              Choose Avatar (Preset)
+              {t('profile.chooseAvatar') || 'Choose Avatar (Preset)'}
             </label>
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
               {PRESET_AVATARS.map((id) => (
@@ -165,7 +208,7 @@ export const ProfilePage: React.FC = () => {
               ))}
             </div>
             <p className="mt-2 text-xs text-gray-500">
-              Selected Avatar: <span className="text-eva-secondary font-bold">{avatarId}</span>
+              {t('profile.selectedAvatar') || 'Selected Avatar'}: <span className="text-eva-secondary font-bold">{avatarId}</span>
             </p>
           </div>
 
@@ -173,7 +216,7 @@ export const ProfilePage: React.FC = () => {
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-300 flex items-center gap-2">
               <Calendar className="w-4 h-4" />
-              Member Since
+              {t('profile.memberSince') || 'Member Since'}
             </label>
             <input
               type="text"
@@ -190,10 +233,10 @@ export const ProfilePage: React.FC = () => {
             className="w-full bg-eva-secondary text-eva-bg font-bold py-3 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {loading && <Loader2 className="w-5 h-5 animate-spin" />}
-            {loading ? 'Saving...' : (
+            {loading ? (t('profile.saving') || 'Saving...') : (
               <>
                 <Save className="w-5 h-5" />
-                Save Changes
+                {t('profile.saveChanges') || 'Save Changes'}
               </>
             )}
           </button>
@@ -202,21 +245,25 @@ export const ProfilePage: React.FC = () => {
 
       {/* My Activity */}
       <div className="mt-8 bg-eva-surface border border-white/10 rounded-xl p-8">
-        <h2 className="text-2xl font-bold mb-4">My Activity</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-3xl font-bold text-eva-secondary mb-1">0</div>
-            <div className="text-sm text-gray-400">Works Submitted</div>
+        <h2 className="text-2xl font-bold mb-4">{t('profile.myActivity') || 'My Activity'}</h2>
+        {loadingStats ? (
+          <SkeletonStats />
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-black/20 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-eva-secondary mb-1">{worksSubmitted}</div>
+              <div className="text-sm text-gray-400">{t('profile.worksSubmitted') || 'Works Submitted'}</div>
+            </div>
+            <div className="bg-black/20 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-eva-accent mb-1">{votesCast}</div>
+              <div className="text-sm text-gray-400">{t('profile.votesCast') || 'Votes Cast'}</div>
+            </div>
+            <div className="bg-black/20 rounded-lg p-4 text-center">
+              <div className="text-3xl font-bold text-white mb-1">{commentsCount}</div>
+              <div className="text-sm text-gray-400">{t('profile.comments') || 'Comments'}</div>
+            </div>
           </div>
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-3xl font-bold text-eva-accent mb-1">0</div>
-            <div className="text-sm text-gray-400">Votes Cast</div>
-          </div>
-          <div className="bg-black/20 rounded-lg p-4 text-center">
-            <div className="text-3xl font-bold text-white mb-1">0</div>
-            <div className="text-sm text-gray-400">Comments</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

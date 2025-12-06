@@ -24,9 +24,6 @@ export const Footer: React.FC = () => {
             <Link to="/about" className="hover:text-white transition-colors">
               {t('footer.about')}
             </Link>
-            <Link to="/api" className="hover:text-white transition-colors">
-              {t('footer.api')}
-            </Link>
           </div>
         </div>
         <div className="mt-8 text-center text-xs text-gray-700">

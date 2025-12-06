@@ -159,7 +159,7 @@ export const Navbar: React.FC = () => {
                         onClick={() => setShowUserMenu(false)}
                       >
                         <Plus className="w-4 h-4 inline mr-2" />
-                        Submit Work
+                        {t('nav.submitWork')}
                       </Link>
                       <button
                         onClick={() => {

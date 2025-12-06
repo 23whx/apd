@@ -16,6 +16,9 @@ import { AdminCharactersPage } from './pages/AdminCharactersPage';
 import { EditWorkPage } from './pages/EditWorkPage';
 import { EditCharacterPage } from './pages/EditCharacterPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
+import { PrivacyPage } from './pages/PrivacyPage';
+import { TermsPage } from './pages/TermsPage';
+import { AboutPage } from './pages/AboutPage';
 import './lib/i18n';
 
 function App() {
@@ -40,6 +43,9 @@ function App() {
               <Route path="/admin/characters" element={<AdminCharactersPage />} />
               <Route path="/admin/characters/:id/edit" element={<EditCharacterPage />} />
               <Route path="/auth/callback" element={<AuthCallbackPage />} />
+              <Route path="/privacy" element={<PrivacyPage />} />
+              <Route path="/terms" element={<TermsPage />} />
+              <Route path="/about" element={<AboutPage />} />
             </Routes>
           </main>
           <Footer />

@@ -1,15 +1,114 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, Zap, Activity, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import type { Work } from '../lib/types';
+import { SkeletonWorkCard } from '../components/Skeleton';
+
+interface TrendingWork extends Work {
+  character_count: number;
+  vote_count: number;
+}
 
 export const HomePage: React.FC = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [searching, setSearching] = useState(false);
   const [showNoResultModal, setShowNoResultModal] = useState(false);
+  const [trendingWorks, setTrendingWorks] = useState<TrendingWork[]>([]);
+  const [loadingTrending, setLoadingTrending] = useState(true);
+
+  useEffect(() => {
+    fetchTrendingWorks();
+  }, []);
+
+  const fetchTrendingWorks = async () => {
+    try {
+      // 获取所有作品的投票统计
+      const { data: worksData, error: worksError } = await supabase
+        .from('works')
+        .select('id, name_cn, name_en, name_jp, type, poster_url')
+        .limit(50); // 获取前50个作品
+
+      if (worksError) throw worksError;
+      if (!worksData || worksData.length === 0) {
+        setTrendingWorks([]);
+        setLoadingTrending(false);
+        return;
+      }
+
+      const workIds = worksData.map(w => w.id);
+
+      // 获取每个作品的角色数量
+      const { data: charCounts } = await supabase
+        .from('characters')
+        .select('work_id')
+        .in('work_id', workIds);
+
+      // 获取每个作品的投票数（通过角色）
+      const { data: charIds } = await supabase
+        .from('characters')
+        .select('id, work_id')
+        .in('work_id', workIds);
+
+      if (charIds && charIds.length > 0) {
+        const characterIds = charIds.map(c => c.id);
+        const { data: voteCounts } = await supabase
+          .from('personality_votes')
+          .select('character_id')
+          .in('character_id', characterIds);
+
+        // 统计每个作品的数据
+        const workStats = worksData.map(work => {
+          const workCharIds = charIds.filter(c => c.work_id === work.id).map(c => c.id);
+          const characterCount = charCounts?.filter(c => c.work_id === work.id).length || 0;
+          const voteCount = voteCounts?.filter(v => workCharIds.includes(v.character_id)).length || 0;
+
+          return {
+            ...work,
+            character_count: characterCount,
+            vote_count: voteCount
+          };
+        });
+
+        // 按投票数排序，取前3个，去重
+        const sortedByVotes = [...workStats].sort((a, b) => b.vote_count - a.vote_count);
+        const topVoted = sortedByVotes.slice(0, 3);
+
+        // 去重：如果第一名和历史第一名相同，只保留一个
+        const uniqueWorks: TrendingWork[] = [];
+        const seenIds = new Set<string>();
+
+        topVoted.forEach(work => {
+          if (!seenIds.has(work.id)) {
+            uniqueWorks.push(work);
+            seenIds.add(work.id);
+          }
+        });
+
+        setTrendingWorks(uniqueWorks.slice(0, 3));
+      } else {
+        // 没有角色数据时，显示前3个作品
+        setTrendingWorks(worksData.slice(0, 3).map(w => ({
+          ...w,
+          character_count: 0,
+          vote_count: 0
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching trending works:', error);
+    } finally {
+      setLoadingTrending(false);
+    }
+  };
+
+  const getWorkName = (work: Work) => {
+    if (i18n.language === 'zh') return work.name_cn || work.name_en || work.name_jp || 'Unknown';
+    if (i18n.language === 'ja') return work.name_jp || work.name_en || work.name_cn || 'Unknown';
+    return work.name_en || work.name_cn || work.name_jp || 'Unknown';
+  };
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -127,39 +226,59 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Placeholder Cards */}
-          {[
-            { title: 'Neon Genesis Evangelion', type: 'anime', chars: 24, votes: '1.2k' },
-            { title: 'Genshin Impact', type: 'game', chars: 85, votes: '15k' },
-            { title: 'Lord of the Mysteries', type: 'novel', chars: 12, votes: '800' },
-          ].map((work, idx) => (
-            <Link
-              key={idx}
-              to={`/works/${idx + 1}`}
-              className="group bg-eva-surface border border-white/5 rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300"
-            >
-              <div className="h-48 bg-gray-800 relative">
-                <div className="absolute inset-0 bg-gradient-to-t from-eva-surface to-transparent opacity-80"></div>
-                <span className="absolute top-4 right-4 bg-black/50 backdrop-blur text-xs px-2 py-1 rounded text-white border border-white/10">
-                  {t(`workTypes.${work.type}`)}
-                </span>
-              </div>
-              <div className="p-5">
-                <h3 className="text-lg font-bold text-white mb-1 group-hover:text-eva-secondary transition-colors">
-                  {work.title}
-                </h3>
-                <p className="text-sm text-gray-400 mb-4">Psychological, Mecha, Post-Apocalyptic</p>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span className="bg-white/5 px-2 py-1 rounded">
-                    {work.chars} {t('trending.charactersCount')}
-                  </span>
-                  <span className="bg-white/5 px-2 py-1 rounded">
-                    {work.votes} {t('trending.votesCount')}
-                  </span>
+          {loadingTrending ? (
+            // 显示骨架屏
+            <>
+              <SkeletonWorkCard />
+              <SkeletonWorkCard />
+              <SkeletonWorkCard />
+            </>
+          ) : trendingWorks.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-gray-400">
+              No trending works yet. <Link to="/submit" className="text-eva-secondary hover:underline">Submit a work</Link> to get started!
+            </div>
+          ) : (
+            trendingWorks.map((work) => (
+              <Link
+                key={work.id}
+                to={`/works/${work.id}`}
+                className="group bg-eva-surface border border-white/5 rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300"
+              >
+                <div className="h-48 bg-gray-800 relative overflow-hidden">
+                  {work.poster_url ? (
+                    <img
+                      src={work.poster_url}
+                      alt={getWorkName(work)}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gray-800"></div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-eva-surface to-transparent opacity-80"></div>
+                  <div className="absolute top-4 right-4 flex gap-1 flex-wrap justify-end">
+                    {(Array.isArray(work.type) ? work.type : [work.type]).map((type) => (
+                      <span key={type} className="bg-black/50 backdrop-blur text-xs px-2 py-1 rounded text-white border border-white/10">
+                        {t(`workTypes.${type}`)}
+                      </span>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+                <div className="p-5">
+                  <h3 className="text-lg font-bold text-white mb-3 group-hover:text-eva-secondary transition-colors line-clamp-2">
+                    {getWorkName(work)}
+                  </h3>
+                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                    <span className="bg-white/5 px-2 py-1 rounded">
+                      {work.character_count} {t('trending.charactersCount')}
+                    </span>
+                    <span className="bg-white/5 px-2 py-1 rounded">
+                      {work.vote_count} {t('trending.votesCount')}
+                    </span>
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
         </div>
       </div>
 

@@ -10,7 +10,8 @@ const resources = {
         characters: 'Characters',
         login: 'Login',
         logout: 'Logout',
-        profile: 'Profile'
+        profile: 'Profile',
+        submitWork: 'Submit Work'
       },
       hero: {
         status: 'System Online',
@@ -50,6 +51,22 @@ const resources = {
         about: 'About',
         api: 'API',
         copyright: '© 2025 APD Project. All data sources belong to their respective owners.'
+      },
+      profile: {
+        title: 'Profile Settings',
+        email: 'Email',
+        username: 'Username',
+        displayName: 'Display Name',
+        chooseAvatar: 'Choose Avatar (Preset)',
+        selectedAvatar: 'Selected Avatar',
+        memberSince: 'Member Since',
+        saveChanges: 'Save Changes',
+        saving: 'Saving...',
+        updateSuccess: 'Profile updated successfully!',
+        myActivity: 'My Activity',
+        worksSubmitted: 'Works Submitted',
+        votesCast: 'Votes Cast',
+        comments: 'Comments'
       }
     }
   },
@@ -60,7 +77,8 @@ const resources = {
         characters: '角色',
         login: '登录',
         logout: '退出',
-        profile: '个人中心'
+        profile: '个人中心',
+        submitWork: '提交作品'
       },
       hero: {
         status: '系统在线',
@@ -100,6 +118,22 @@ const resources = {
         about: '关于',
         api: 'API',
         copyright: '© 2025 APD 项目。所有数据源归其各自所有者所有。'
+      },
+      profile: {
+        title: '个人设置',
+        email: '邮箱',
+        username: '用户名',
+        displayName: '显示名称',
+        chooseAvatar: '选择头像（预设）',
+        selectedAvatar: '已选头像',
+        memberSince: '注册时间',
+        saveChanges: '保存更改',
+        saving: '保存中...',
+        updateSuccess: '个人资料更新成功！',
+        myActivity: '我的活动',
+        worksSubmitted: '提交的作品',
+        votesCast: '投票次数',
+        comments: '评论'
       }
     }
   },
@@ -110,7 +144,8 @@ const resources = {
         characters: 'キャラクター',
         login: 'ログイン',
         logout: 'ログアウト',
-        profile: 'プロフィール'
+        profile: 'プロフィール',
+        submitWork: '作品を投稿'
       },
       hero: {
         status: 'システムオンライン',
@@ -150,6 +185,22 @@ const resources = {
         about: 'について',
         api: 'API',
         copyright: '© 2025 APD プロジェクト。すべてのデータソースはそれぞれの所有者に帰属します。'
+      },
+      profile: {
+        title: 'プロフィール設定',
+        email: 'メール',
+        username: 'ユーザー名',
+        displayName: '表示名',
+        chooseAvatar: 'アバターを選択（プリセット）',
+        selectedAvatar: '選択したアバター',
+        memberSince: '登録日',
+        saveChanges: '変更を保存',
+        saving: '保存中...',
+        updateSuccess: 'プロフィールが正常に更新されました！',
+        myActivity: 'マイアクティビティ',
+        worksSubmitted: '提出した作品',
+        votesCast: '投票数',
+        comments: 'コメント'
       }
     }
   }
