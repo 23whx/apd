@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Search, Zap, Activity, ChevronRight } from 'lucide-react';
+import { Search, Activity, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { SkeletonWorkCard } from '../components/Skeleton';
+import { websiteSchema, organizationSchema, injectSchema } from '../lib/schema';
 
 interface TrendingWork extends Work {
   character_count: number;
@@ -22,6 +23,15 @@ export const HomePage: React.FC = () => {
 
   useEffect(() => {
     fetchTrendingWorks();
+    
+    // Inject Schema.org structured data for SEO
+    const cleanupWebsiteSchema = injectSchema(websiteSchema);
+    const cleanupOrgSchema = injectSchema(organizationSchema);
+    
+    return () => {
+      cleanupWebsiteSchema?.();
+      cleanupOrgSchema?.();
+    };
   }, []);
 
   const fetchTrendingWorks = async () => {
@@ -161,11 +171,6 @@ export const HomePage: React.FC = () => {
         </div>
 
         <div className="max-w-4xl mx-auto px-4 py-24 sm:px-6 lg:px-8 relative z-10 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-eva-secondary/10 border border-eva-secondary/20 text-eva-secondary text-xs font-bold tracking-widest uppercase mb-6">
-            <Zap className="w-3 h-3" />
-            {t('hero.status')}
-          </div>
-
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
             {t('hero.title')}
           </h1>

@@ -1,0 +1,30 @@
+# APD - ACGN Personality Database
+# Robots.txt for Search Engine Optimization
+
+# Allow all search engines
+User-agent: *
+Allow: /
+
+# Specific rules for major search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 0
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Disallow admin pages
+Disallow: /admin
+Disallow: /admin/*
+
+# Disallow authentication callback
+Disallow: /auth/callback
+
+# Sitemap location
+Sitemap: https://acgn-personality-database.top/sitemap.xml
+
