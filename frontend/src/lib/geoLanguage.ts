@@ -61,10 +61,9 @@ async function fetchCountryCode(): Promise<string | null> {
 
 /**
  * Detect and set appropriate language based on user's IP location
- * @param currentLanguage - The current language setting (from localStorage or default)
  * @returns Detected language code or null if detection failed
  */
-export async function detectAndSetLanguage(currentLanguage?: string): Promise<string | null> {
+export async function detectAndSetLanguage(): Promise<string | null> {
   // If user has manually set a language (stored in localStorage), respect that
   const storedLanguage = localStorage.getItem('i18nextLng');
   if (storedLanguage && ['en', 'zh', 'ja'].includes(storedLanguage)) {

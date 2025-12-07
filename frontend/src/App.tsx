@@ -30,7 +30,7 @@ function AppContent() {
   useEffect(() => {
     // Detect language based on IP on first visit
     const initLanguage = async () => {
-      const detectedLang = await detectAndSetLanguage(i18n.language);
+      const detectedLang = await detectAndSetLanguage();
       if (detectedLang && detectedLang !== i18n.language) {
         await i18n.changeLanguage(detectedLang);
         console.log('[App] Language set to:', detectedLang);
