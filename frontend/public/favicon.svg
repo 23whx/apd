@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Background: Hexagon (Database/Structure) -->
+  <path d="M256 48L448 144V336L256 432L64 336V144L256 48Z" fill="#965FD4" stroke="#965FD4" stroke-width="32" stroke-linejoin="round"/>
+  
+  <!-- Inner Hexagon for contrast -->
+  <path d="M256 80L416 160V320L256 400L96 320V160L256 80Z" fill="#1A1A1A"/>
+
+  <!-- Symbol: Psi (Psychology/Personality) -->
+  <!-- Stylized to look a bit like a neural connection or circuit -->
+  <path d="M256 140V360" stroke="#A8FF60" stroke-width="48" stroke-linecap="round"/>
+  <path d="M160 180C160 180 160 260 256 260C352 260 352 180 352 180" stroke="#A8FF60" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Tech dots -->
+  <circle cx="160" cy="150" r="24" fill="#A8FF60"/>
+  <circle cx="352" cy="150" r="24" fill="#A8FF60"/>
+  <circle cx="256" cy="380" r="24" fill="#A8FF60"/>
+</svg>
