@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { Save, Eye, ArrowLeft, AlertCircle, Image as ImageIcon } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useTranslation } from 'react-i18next';
+import remarkGfm from 'remark-gfm';
 
 type BlogLang = 'zh' | 'en' | 'ja';
 
@@ -205,6 +206,91 @@ export const AdminWriteBlogPage: React.FC = () => {
     }
   };
 
+  // 提取内容中的所有图片/视频 URL
+  const extractMediaUrls = (text: string): string[] => {
+    const urls: string[] = [];
+    const blogMediaPattern = /https:\/\/[^\/]+\.supabase\.co\/storage\/v1\/object\/public\/blog-media\/[^\s\)]+/g;
+    const matches = text.match(blogMediaPattern);
+    if (matches) {
+      urls.push(...matches);
+    }
+    return urls;
+  };
+
+  // 从 URL 中提取文件路径
+  const getFilePathFromUrl = (url: string): string | null => {
+    const match = url.match(/\/blog-media\/(.+)$/);
+    return match ? match[1] : null;
+  };
+
+  // 删除 Storage 中的文件
+  const deleteMediaFile = async (fileUrl: string) => {
+    try {
+      const filePath = getFilePathFromUrl(fileUrl);
+      if (!filePath) return;
+
+      const { error } = await supabase.storage
+        .from('blog-media')
+        .remove([filePath]);
+
+      if (error) {
+        console.error('Failed to delete file:', error);
+      } else {
+        console.log('Successfully deleted unused file:', filePath);
+      }
+    } catch (err) {
+      console.error('Error deleting file:', err);
+    }
+  };
+
+  // 清理未使用的媒体文件
+  const cleanupUnusedMedia = async (oldContent: string, newContent: string, postId?: string) => {
+    try {
+      const oldUrls = extractMediaUrls(oldContent);
+      const newUrls = extractMediaUrls(newContent);
+
+      // 找出被删除的 URL
+      const deletedUrls = oldUrls.filter(url => !newUrls.includes(url));
+
+      if (deletedUrls.length === 0) return;
+
+      // 如果是编辑模式，检查这些 URL 是否在其他语言版本中使用
+      if (postId) {
+        const { data: translations } = await supabase
+          .from('blog_post_translations')
+          .select('content_md, lang')
+          .eq('post_id', postId);
+
+        if (translations) {
+          // 收集所有其他语言版本的 URL
+          const otherLangUrls = new Set<string>();
+          translations.forEach(trans => {
+            if (trans.lang !== lang) {
+              const urls = extractMediaUrls(trans.content_md || '');
+              urls.forEach(url => otherLangUrls.add(url));
+            }
+          });
+
+          // 只删除在所有语言版本中都不再使用的文件
+          for (const url of deletedUrls) {
+            if (!otherLangUrls.has(url)) {
+              await deleteMediaFile(url);
+            } else {
+              console.log('File still used in other language versions:', url);
+            }
+          }
+        }
+      } else {
+        // 新文章，直接删除
+        for (const url of deletedUrls) {
+          await deleteMediaFile(url);
+        }
+      }
+    } catch (err) {
+      console.error('Error cleaning up unused media:', err);
+    }
+  };
+
   // 上传图片/视频到 Supabase Storage
   const uploadMedia = async (file: File): Promise<string> => {
     setUploading(true);
@@ -335,6 +421,9 @@ export const AdminWriteBlogPage: React.FC = () => {
     setSaving(true);
     setError('');
 
+    // 保存旧内容以便清理未使用的媒体文件
+    const oldContent = isEditMode && id ? translationsDraft[lang]?.content || '' : '';
+
     try {
       // Split by both English and Chinese commas
       const tagsArray = tags.split(/[，,]/).map(t => t.trim()).filter(t => t);
@@ -394,6 +483,13 @@ export const AdminWriteBlogPage: React.FC = () => {
         .upsert(translationData, { onConflict: 'post_id,lang' });
 
       if (tErr) throw tErr;
+
+      // 清理未使用的媒体文件（在后台执行，不阻塞保存流程）
+      if (isEditMode && oldContent) {
+        cleanupUnusedMedia(oldContent, content, postId).catch(err => {
+          console.error('Failed to cleanup unused media:', err);
+        });
+      }
 
       alert(isEditMode ? '文章已更新！' : '文章已保存！');
       navigate('/admin/blog');
@@ -631,14 +727,22 @@ export const AdminWriteBlogPage: React.FC = () => {
                   color: '#fff',
                   padding: '16px',
                 },
-                rehypePlugins: [
-                  // 允许视频标签在预览中显示
-                  [
-                    // @ts-ignore
-                    () => (tree: any) => tree,
-                    { allowDangerousHtml: true }
-                  ]
-                ]
+                remarkPlugins: [remarkGfm],
+                components: {
+                  // 自定义组件渲染
+                  video: ({ node, ...props }: any) => (
+                    <video controls style={{ maxWidth: '100%' }} {...props} />
+                  ),
+                  ol: ({ node, ...props }: any) => (
+                    <ol style={{ paddingLeft: '2rem', marginBottom: '1rem', listStyleType: 'decimal' }} {...props} />
+                  ),
+                  ul: ({ node, ...props }: any) => (
+                    <ul style={{ paddingLeft: '2rem', marginBottom: '1rem', listStyleType: 'disc' }} {...props} />
+                  ),
+                  li: ({ node, ...props }: any) => (
+                    <li style={{ marginBottom: '0.5rem' }} {...props} />
+                  ),
+                }
               }}
               textareaProps={{
                 placeholder: '在这里撰写文章内容...\n\n✨ 支持 Markdown 语法\n📸 拖拽图片/视频文件到此处上传\n📋 粘贴截图自动上传\n🎬 支持插入视频（MP4, WebM）'
