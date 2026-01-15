@@ -10,7 +10,8 @@ const resources = {
         login: 'Login',
         logout: 'Logout',
         profile: 'Profile',
-        submitWork: 'Submit Work'
+        submitWork: 'Submit Work',
+        blog: 'Blog'
       },
       hero: {
         status: 'System Online',
@@ -117,6 +118,25 @@ const resources = {
         delete: 'Delete',
         save: 'Save',
         cancel: 'Cancel'
+      },
+      blog: {
+        title: 'Blog Articles',
+        subtitle: 'Explore personality theories, anime character analysis, and tech sharing',
+        searchPlaceholder: 'Search articles by title, content, or tags...',
+        categories: {
+          all: 'All',
+          mbti: 'MBTI',
+          enneagramTypes: 'Enneagram Types',
+          enneagramWings: 'Enneagram Wings',
+          enneagramInstincts: 'Enneagram Instincts',
+          yixue: 'YiXue Personality',
+          tech: 'Tech',
+          other: 'Other'
+        },
+        noArticles: 'No articles yet',
+        readMore: 'READ MORE',
+        showingCount: 'Showing {{count}} articles',
+        views: 'views'
       }
     }
   },
@@ -128,7 +148,8 @@ const resources = {
         login: '登录',
         logout: '退出',
         profile: '个人中心',
-        submitWork: '提交作品'
+        submitWork: '提交作品',
+        blog: '博客'
       },
       hero: {
         status: '系统在线',
@@ -235,6 +256,25 @@ const resources = {
         delete: '删除',
         save: '保存',
         cancel: '取消'
+      },
+      blog: {
+        title: '博客文章',
+        subtitle: '探索人格理论、动漫角色分析与技术分享',
+        searchPlaceholder: '搜索文章标题、内容或标签...',
+        categories: {
+          all: '全部',
+          mbti: 'MBTI',
+          enneagramTypes: '九型类型',
+          enneagramWings: '九型侧翼',
+          enneagramInstincts: '九型副型',
+          yixue: '易学人格学',
+          tech: '技术',
+          other: '其他'
+        },
+        noArticles: '暂无文章',
+        readMore: '阅读更多',
+        showingCount: '显示 {{count}} 篇文章',
+        views: '次浏览'
       }
     }
   },
@@ -353,6 +393,25 @@ const resources = {
         delete: '削除',
         save: '保存',
         cancel: 'キャンセル'
+      },
+      blog: {
+        title: 'ブログ記事',
+        subtitle: 'パーソナリティ理論、アニメキャラクター分析、技術シェアを探索',
+        searchPlaceholder: 'タイトル、内容、タグで記事を検索...',
+        categories: {
+          all: 'すべて',
+          mbti: 'MBTI',
+          enneagramTypes: 'エニアグラムタイプ',
+          enneagramWings: 'エニアグラムウィング',
+          enneagramInstincts: 'エニアグラム本能',
+          yixue: '易学パーソナリティ',
+          tech: 'テクノロジー',
+          other: 'その他'
+        },
+        noArticles: '記事はまだありません',
+        readMore: '続きを読む',
+        showingCount: '{{count}}件の記事を表示',
+        views: '閲覧'
       }
     }
   }

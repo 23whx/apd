@@ -15,8 +15,17 @@ export default {
         'eva-text': '#FFFFFF',
         'eva-surface': '#1A1A1A',
       },
+      typography: {
+        DEFAULT: {
+          css: {
+            maxWidth: 'none',
+          },
+        },
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    require('@tailwindcss/typography'),
+  ],
 }
 

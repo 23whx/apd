@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Users, FileText, MessageSquare, TrendingUp, Database } from 'lucide-react';
+import { Shield, Users, FileText, MessageSquare, TrendingUp, Database, PenTool } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
@@ -16,17 +16,23 @@ export const AdminPage: React.FC = () => {
   });
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   useEffect(() => {
     // 等待 auth 加载完成后再检查权限
-    if (!authLoading) {
-      checkAdminAccess();
-    }
-  }, [authLoading]); // Only depend on authLoading, not user
-
-  const checkAdminAccess = async () => {
+    if (authLoading) return;
     if (!user) {
       navigate('/');
+      return;
+    }
+    checkAdminAccess();
+  }, [authLoading, user?.id]); // wait for user to be ready
+
+  const checkAdminAccess = async () => {
+    const currentUser = user;
+    if (!currentUser) {
+      setAdminChecked(true);
+      setIsAdmin(false);
       return;
     }
 
@@ -34,28 +40,38 @@ export const AdminPage: React.FC = () => {
       const { data, error } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single();
 
       if (error || !data) {
-        console.error('Admin permission check failed:', error?.message);
-        alert('Access denied: Unable to verify your permissions.');
+        console.error('Admin permission check failed:', error);
+        // Common case: public.users row missing for this auth user (trigger not set up)
+        const msg =
+          (error as any)?.message?.includes('JSON object requested') ||
+          (error as any)?.code === 'PGRST116'
+            ? 'Access denied: 找不到你的用户资料（public.users）。请在 Supabase 创建 users 资料/触发器后再试。'
+            : 'Access denied: Unable to verify your permissions. 请检查 Supabase 连接与 users 表权限。';
+        alert(msg);
         navigate('/');
+        setAdminChecked(true);
         return;
       }
 
       if (data.role !== 'admin' && data.role !== 'mod') {
         alert(`Access denied!\n\nYour role: ${data.role || 'not set'}\nRequired: admin or mod`);
         navigate('/');
+        setAdminChecked(true);
         return;
       }
 
       setIsAdmin(true);
+      setAdminChecked(true);
       fetchStats();
     } catch (error: any) {
       console.error('Error checking admin access:', error.message);
       alert('An error occurred while verifying permissions.');
       navigate('/');
+      setAdminChecked(true);
     }
   };
 
@@ -85,7 +101,7 @@ export const AdminPage: React.FC = () => {
   };
 
   // 显示加载状态（等待 auth 和权限检查）
-  if (authLoading || !isAdmin) {
+  if (authLoading || !adminChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -96,6 +112,10 @@ export const AdminPage: React.FC = () => {
         </div>
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return null;
   }
 
   return (
@@ -148,27 +168,59 @@ export const AdminPage: React.FC = () => {
           {/* Quick Actions */}
           <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
             <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <button 
+                onClick={() => navigate('/admin/blog/write')}
+                className="bg-gradient-to-br from-eva-secondary to-eva-accent hover:opacity-90 border border-eva-secondary/50 p-6 rounded-lg text-left transition-all shadow-lg"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <PenTool className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">✍️ 写文章</h3>
+                </div>
+                <p className="text-sm text-gray-200">撰写新的博客文章</p>
+              </button>
+              <button 
+                onClick={() => navigate('/admin/blog')}
+                className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 p-6 rounded-lg text-left transition-colors"
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <FileText className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">管理博客</h3>
+                </div>
+                <p className="text-sm text-gray-400">编辑或删除博客文章</p>
+              </button>
               <button 
                 onClick={() => navigate('/admin/works')}
-                className="bg-eva-secondary/20 hover:bg-eva-secondary/30 border border-eva-secondary/50 p-4 rounded-lg text-left transition-colors"
+                className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 p-6 rounded-lg text-left transition-colors"
               >
-                <h3 className="font-bold mb-1">管理作品</h3>
+                <div className="flex items-center gap-3 mb-2">
+                  <Database className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">管理作品</h3>
+                </div>
                 <p className="text-sm text-gray-400">编辑或删除作品</p>
               </button>
               <button 
                 onClick={() => navigate('/admin/characters')}
-                className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 p-4 rounded-lg text-left transition-colors"
+                className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 p-6 rounded-lg text-left transition-colors"
               >
-                <h3 className="font-bold mb-1">管理角色</h3>
+                <div className="flex items-center gap-3 mb-2">
+                  <Users className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">管理角色</h3>
+                </div>
                 <p className="text-sm text-gray-400">编辑或删除角色</p>
               </button>
-              <button className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 p-4 rounded-lg text-left transition-colors">
-                <h3 className="font-bold mb-1">Moderate Comments</h3>
+              <button className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 p-6 rounded-lg text-left transition-colors">
+                <div className="flex items-center gap-3 mb-2">
+                  <MessageSquare className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">Moderate Comments</h3>
+                </div>
                 <p className="text-sm text-gray-400">Review flagged comments</p>
               </button>
-              <button className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 p-4 rounded-lg text-left transition-colors">
-                <h3 className="font-bold mb-1">Manage Users</h3>
+              <button className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 p-6 rounded-lg text-left transition-colors">
+                <div className="flex items-center gap-3 mb-2">
+                  <Shield className="w-6 h-6" />
+                  <h3 className="font-bold text-lg">Manage Users</h3>
+                </div>
                 <p className="text-sm text-gray-400">User roles and permissions</p>
               </button>
             </div>

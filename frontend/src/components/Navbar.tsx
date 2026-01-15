@@ -122,6 +122,12 @@ export const Navbar: React.FC = () => {
                 >
                   {t('nav.characters')}
                 </Link>
+                <Link
+                  to="/blog"
+                  className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  {t('nav.blog')}
+                </Link>
               </div>
             </div>
 

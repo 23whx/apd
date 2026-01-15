@@ -18,6 +18,7 @@ export const SubmitCharacterPage: React.FC = () => {
   const [nameEn, setNameEn] = useState('');
   const [nameJp, setNameJp] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [imageError, setImageError] = useState(false); // 图片加载错误状态
 
   useEffect(() => {
     if (authLoading) return;
@@ -157,20 +158,39 @@ export const SubmitCharacterPage: React.FC = () => {
             <input
               type="url"
               value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
+              onChange={(e) => {
+                setAvatarUrl(e.target.value);
+                setImageError(false);
+              }}
               placeholder="https://i.imgur.com/example.jpg"
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+              className={`w-full bg-black/30 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary ${
+                imageError ? 'border-red-500' : 'border-white/10'
+              }`}
             />
             {avatarUrl && (
-              <div className="mt-4 flex justify-center">
-                <img
-                  src={avatarUrl}
-                  alt="Character Preview"
-                  className="max-h-48 w-auto object-contain rounded-lg border border-white/10"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+              <div className="mt-4">
+                {!imageError ? (
+                  <div className="flex justify-center">
+                    <img
+                      src={avatarUrl}
+                      alt="Character Preview"
+                      className="max-h-48 w-auto object-contain rounded-lg border border-white/10"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        setImageError(true);
+                      }}
+                      onLoad={() => setImageError(false)}
+                    />
+                  </div>
+                ) : (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">无法加载图片</p>
+                      <p>请检查链接是否正确，或尝试其他图片源（避免使用百度、Pixiv等有防盗链的网站）。</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

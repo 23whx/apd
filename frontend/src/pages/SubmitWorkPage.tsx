@@ -24,6 +24,8 @@ export const SubmitWorkPage: React.FC = () => {
   const [aliases, setAliases] = useState<string[]>(['']); // 别名列表
   const [workTypes, setWorkTypes] = useState<('anime' | 'manga' | 'game' | 'novel')[]>(['anime']); // 改为数组
   const [posterUrl, setPosterUrl] = useState(''); // 海报/封面图
+  const [posterError, setPosterError] = useState(false); // 海报加载错误状态
+  const [failedCharImages, setFailedCharImages] = useState<Set<string>>(new Set()); // 角色图片加载错误集合
   const [summary, setSummary] = useState('');
   
   // 角色列表
@@ -105,6 +107,15 @@ export const SubmitWorkPage: React.FC = () => {
     setCharacters(
       characters.map((c) => (c.id === id ? { ...c, [field]: value } : c))
     );
+    
+    // 如果更新的是头像 URL，重置该角色的错误状态
+    if (field === 'avatar_url') {
+      setFailedCharImages(prev => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }
   };
 
   const addAlias = () => {
@@ -405,21 +416,43 @@ export const SubmitWorkPage: React.FC = () => {
                 <input
                   type="url"
                   value={posterUrl}
-                  onChange={(e) => setPosterUrl(e.target.value)}
+                  onChange={(e) => {
+                    setPosterUrl(e.target.value);
+                    setPosterError(false); // 重置错误状态
+                  }}
                   placeholder="https://example.com/poster.jpg"
-                  className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+                  className={`flex-1 bg-black/30 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary ${
+                    posterError ? 'border-red-500' : 'border-white/10'
+                  }`}
                 />
               </div>
+              
+              {/* 图片预览与错误提示 */}
               {posterUrl && (
-                <div className="mt-4 flex justify-center">
-                  <img
-                    src={posterUrl}
-                    alt="Poster Preview"
-                    className="max-h-64 w-auto object-contain rounded-lg border border-white/10"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                <div className="mt-4">
+                  {!posterError ? (
+                    <div className="flex justify-center">
+                      <img
+                        src={posterUrl}
+                        alt="Poster Preview"
+                        className="max-h-64 w-auto object-contain rounded-lg border border-white/10"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          setPosterError(true);
+                        }}
+                        onLoad={() => setPosterError(false)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">无法加载图片</p>
+                        <p>请检查链接是否正确，或者该网站是否有防盗链限制（如 Pixiv, 百度百科等通常无法直接引用）。</p>
+                        <p className="mt-1 text-xs text-gray-400">建议使用 Imgur 或其他图床。</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -533,18 +566,36 @@ export const SubmitWorkPage: React.FC = () => {
                         updateCharacter(char.id, 'avatar_url', e.target.value)
                       }
                       placeholder="https://example.com/character.jpg"
-                      className="w-full bg-black/30 border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-eva-secondary"
+                      className={`w-full bg-black/30 border rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-eva-secondary ${
+                        failedCharImages.has(char.id) ? 'border-red-500' : 'border-white/10'
+                      }`}
                     />
                     {char.avatar_url && (
-                      <div className="mt-2 flex justify-center">
-                        <img
-                          src={char.avatar_url}
-                          alt={char.name_cn || 'Character'}
-                          className="max-h-32 w-auto object-contain rounded border border-white/10"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none';
-                          }}
-                        />
+                      <div className="mt-2">
+                        {!failedCharImages.has(char.id) ? (
+                          <div className="flex justify-center">
+                            <img
+                              src={char.avatar_url}
+                              alt={char.name_cn || 'Character'}
+                              className="max-h-32 w-auto object-contain rounded border border-white/10"
+                              onError={() => {
+                                setFailedCharImages(prev => new Set(prev).add(char.id));
+                              }}
+                              onLoad={() => {
+                                setFailedCharImages(prev => {
+                                  const next = new Set(prev);
+                                  next.delete(char.id);
+                                  return next;
+                                });
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="p-2 bg-red-500/10 border border-red-500/30 rounded flex items-center gap-2 text-red-400 text-xs">
+                            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                            <span>图片无法加载</span>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

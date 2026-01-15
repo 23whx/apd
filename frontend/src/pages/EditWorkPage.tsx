@@ -12,6 +12,7 @@ export const EditWorkPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
   const [error, setError] = useState('');
 
   // 作品信息
@@ -21,25 +22,45 @@ export const EditWorkPage: React.FC = () => {
   const [aliases, setAliases] = useState<string[]>(['']);
   const [workTypes, setWorkTypes] = useState<('anime' | 'manga' | 'game' | 'novel')[]>(['anime']);
   const [posterUrl, setPosterUrl] = useState('');
+  const [posterError, setPosterError] = useState(false);
   const [summary, setSummary] = useState('');
 
   useEffect(() => {
-    if (!authLoading) {
-      checkAdminStatus();
-      fetchWork();
+    if (authLoading) return;
+
+    if (!user) {
+      setAdminChecked(true);
+      setIsAdmin(false);
+      return;
     }
+
+    (async () => {
+      const ok = await checkAdminStatus();
+      setAdminChecked(true);
+      if (ok) {
+        fetchWork();
+      }
+    })();
   }, [id, user, authLoading]);
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
+  const checkAdminStatus = async (): Promise<boolean> => {
+    if (!user) return false;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    setIsAdmin(data?.role === 'admin' || data?.role === 'mod');
+    if (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+      return false;
+    }
+
+    const ok = data?.role === 'admin' || data?.role === 'mod';
+    setIsAdmin(ok);
+    return ok;
   };
 
   const fetchWork = async () => {
@@ -129,6 +150,17 @@ export const EditWorkPage: React.FC = () => {
       setSaving(false);
     }
   };
+
+  if (!adminChecked || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary mb-4"></div>
+          <p className="text-gray-400">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || !isAdmin) {
     return (
@@ -281,21 +313,40 @@ export const EditWorkPage: React.FC = () => {
                 <input
                   type="url"
                   value={posterUrl}
-                  onChange={(e) => setPosterUrl(e.target.value)}
+                  onChange={(e) => {
+                    setPosterUrl(e.target.value);
+                    setPosterError(false);
+                  }}
                   placeholder="https://example.com/poster.jpg"
-                  className="flex-1 bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+                  className={`flex-1 bg-black/30 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary ${
+                    posterError ? 'border-red-500' : 'border-white/10'
+                  }`}
                 />
               </div>
               {posterUrl && (
-                <div className="mt-4 flex justify-center">
-                  <img
-                    src={posterUrl}
-                    alt="Poster Preview"
-                    className="max-h-64 w-auto object-contain rounded-lg border border-white/10"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
+                <div className="mt-4">
+                  {!posterError ? (
+                    <div className="flex justify-center">
+                      <img
+                        src={posterUrl}
+                        alt="Poster Preview"
+                        className="max-h-64 w-auto object-contain rounded-lg border border-white/10"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          setPosterError(true);
+                        }}
+                        onLoad={() => setPosterError(false)}
+                      />
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+                      <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">无法加载图片</p>
+                        <p>请检查链接是否正确，或尝试其他图片源。</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

@@ -2,12 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Edit, Trash2, AlertCircle, Search } from 'lucide-react';
-import type { Work } from '../lib/types';
+import { Plus, Edit, Trash2, AlertCircle, Search, Eye, EyeOff } from 'lucide-react';
 
-export const AdminWorksPage: React.FC = () => {
+interface BlogPost {
+  id: string;
+  post_id?: string;
+  lang?: string;
+  title: string;
+  slug: string;
+  category: string;
+  published: boolean;
+  view_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const AdminBlogPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
-  const [works, setWorks] = useState<Work[]>([]);
+  const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -26,10 +38,10 @@ export const AdminWorksPage: React.FC = () => {
       const ok = await checkAdminStatus();
       setAdminChecked(true);
       if (ok) {
-        fetchWorks();
+        fetchPosts();
       }
     })();
-  }, [authLoading, user?.id]);
+  }, [authLoading, user]);
 
   const checkAdminStatus = async (): Promise<boolean> => {
     if (!user) return false;
@@ -51,48 +63,72 @@ export const AdminWorksPage: React.FC = () => {
     return ok;
   };
 
-  const fetchWorks = async () => {
+  const fetchPosts = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('works')
-        .select('id, name_cn, name_en, name_jp, type, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50);
+        // Admin list uses zh as default display language for now
+        .from('blog_post_translations_with_author')
+        .select('post_id, lang, title, slug, category, published, view_count, created_at, updated_at')
+        .eq('lang', 'zh')
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setWorks(data || []);
+      setPosts((data || []).map((row: any) => ({
+        id: row.post_id,
+        post_id: row.post_id,
+        lang: row.lang,
+        title: row.title,
+        slug: row.slug,
+        category: row.category,
+        published: row.published,
+        view_count: row.view_count,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      })));
     } catch (error) {
-      console.error('Error fetching works:', error);
+      console.error('Error fetching posts:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (workId: string, workName: string) => {
-    if (!confirm(`确定要删除作品「${workName}」吗？此操作不可撤销！`)) {
+  const handleDelete = async (postId: string, postTitle: string) => {
+    if (!confirm(`确定要删除文章「${postTitle}」吗？此操作不可撤销！`)) {
       return;
     }
 
     try {
       const { error } = await supabase
-        .from('works')
+        .from('blog_posts')
         .delete()
-        .eq('id', workId);
+        .eq('id', postId);
 
       if (error) throw error;
 
       alert('删除成功！');
-      fetchWorks();
+      fetchPosts();
     } catch (error: any) {
       alert('删除失败：' + error.message);
     }
   };
 
-  const filteredWorks = works.filter(work =>
-    work.name_cn.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    work.name_en?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    work.name_jp?.toLowerCase().includes(searchQuery.toLowerCase())
+  const getCategoryLabel = (category: string) => {
+    const labels: Record<string, string> = {
+      'mbti': '📊 MBTI',
+      'enneagram-types': '🎭 九型类型',
+      'enneagram-wings': '🪶 九型侧翼',
+      'enneagram-instincts': '🧭 九型副型',
+      'yixue': '☯️ 易学人格学',
+      'tech': '💻 技术',
+      'other': '📝 其他',
+    };
+    return labels[category] || category;
+  };
+
+  const filteredPosts = posts.filter(post =>
+    post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    post.slug.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   if (!user) {
@@ -128,8 +164,19 @@ export const AdminWorksPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-4xl font-bold mb-2">管理作品</h1>
-      <p className="text-gray-400 mb-8">编辑或删除数据库中的作品</p>
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-4xl font-bold mb-2">管理博客文章</h1>
+          <p className="text-gray-400">编辑、发布或删除博客文章</p>
+        </div>
+        <Link
+          to="/admin/blog/write"
+          className="bg-eva-secondary text-eva-bg px-6 py-3 rounded-lg font-bold hover:bg-eva-secondary/90 transition-colors flex items-center gap-2"
+        >
+          <Plus className="w-5 h-5" />
+          写新文章
+        </Link>
+      </div>
 
       {/* 搜索框 */}
       <div className="mb-6">
@@ -139,7 +186,7 @@ export const AdminWorksPage: React.FC = () => {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="搜索作品名称..."
+            placeholder="搜索文章标题或 slug..."
             className="w-full bg-eva-surface border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
           />
         </div>
@@ -151,18 +198,32 @@ export const AdminWorksPage: React.FC = () => {
         </div>
       ) : (
         <>
-          <p className="text-gray-400 mb-4">共 {filteredWorks.length} 部作品</p>
-          
+          <p className="text-gray-400 mb-4">
+            共 {filteredPosts.length} 篇文章
+            <span className="ml-4 text-green-400">
+              {posts.filter(p => p.published).length} 篇已发布
+            </span>
+            <span className="ml-4 text-yellow-400">
+              {posts.filter(p => !p.published).length} 篇草稿
+            </span>
+          </p>
+
           <div className="bg-eva-surface border border-white/10 rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-black/20">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      作品
+                      文章
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
-                      类型
+                      分类
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      状态
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      浏览量
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">
                       创建时间
@@ -173,42 +234,59 @@ export const AdminWorksPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {filteredWorks.map((work) => (
-                    <tr key={work.id} className="hover:bg-white/5 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                  {filteredPosts.map((post) => (
+                    <tr key={post.id} className="hover:bg-white/5 transition-colors">
+                      <td className="px-6 py-4">
                         <div>
-                          <div className="font-medium text-white">{work.name_cn}</div>
-                          {work.name_en && (
-                            <div className="text-sm text-gray-400">{work.name_en}</div>
-                          )}
+                          <div className="font-medium text-white">{post.title}</div>
+                          <div className="text-sm text-gray-400 font-mono">/{post.slug}</div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-1 flex-wrap">
-                          {(Array.isArray(work.type) ? work.type : [work.type]).map((type) => (
-                            <span
-                              key={type}
-                              className="inline-flex px-2 py-1 text-xs font-semibold rounded bg-eva-secondary/20 text-eva-secondary"
-                            >
-                              {type}
-                            </span>
-                          ))}
-                        </div>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded bg-eva-accent/20 text-eva-accent">
+                          {getCategoryLabel(post.category)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {post.published ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded bg-green-500/20 text-green-400">
+                            <Eye className="w-3 h-3" />
+                            已发布
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded bg-yellow-500/20 text-yellow-400">
+                            <EyeOff className="w-3 h-3" />
+                            草稿
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {new Date(work.created_at).toLocaleDateString('zh-CN')}
+                        {post.view_count} 次
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                        {new Date(post.created_at).toLocaleDateString('zh-CN')}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex gap-2 justify-end">
+                          {post.published && (
+                            <Link
+                              to={`/blog/${post.slug}`}
+                              className="text-blue-400 hover:text-blue-300 transition-colors"
+                              title="查看"
+                              target="_blank"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </Link>
+                          )}
                           <Link
-                            to={`/admin/works/${work.id}/edit`}
+                            to={`/admin/blog/edit/${post.id}`}
                             className="text-eva-secondary hover:text-eva-secondary/80 transition-colors"
                             title="编辑"
                           >
                             <Edit className="w-5 h-5" />
                           </Link>
                           <button
-                            onClick={() => handleDelete(work.id, work.name_cn)}
+                            onClick={() => handleDelete(post.id, post.title)}
                             className="text-red-400 hover:text-red-300 transition-colors"
                             title="删除"
                           >
@@ -223,9 +301,9 @@ export const AdminWorksPage: React.FC = () => {
             </div>
           </div>
 
-          {filteredWorks.length === 0 && (
+          {filteredPosts.length === 0 && (
             <div className="text-center py-12 text-gray-400">
-              {searchQuery ? '没有找到匹配的作品' : '还没有作品'}
+              {searchQuery ? '没有找到匹配的文章' : '还没有文章，点击上方按钮开始写作！'}
             </div>
           )}
         </>
@@ -233,4 +311,3 @@ export const AdminWorksPage: React.FC = () => {
     </div>
   );
 };
-

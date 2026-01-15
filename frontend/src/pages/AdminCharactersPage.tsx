@@ -23,24 +23,44 @@ export const AdminCharactersPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && user) {
-      checkAdminStatus();
-      fetchCharacters();
+    if (authLoading) return;
+
+    if (!user) {
+      setAdminChecked(true);
+      setIsAdmin(false);
+      return;
     }
-  }, [authLoading]); // Only depend on authLoading, not user
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
+    (async () => {
+      const ok = await checkAdminStatus();
+      setAdminChecked(true);
+      if (ok) {
+        fetchCharacters();
+      }
+    })();
+  }, [authLoading, user?.id]);
 
-    const { data } = await supabase
+  const checkAdminStatus = async (): Promise<boolean> => {
+    if (!user) return false;
+
+    const { data, error } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    setIsAdmin(data?.role === 'admin' || data?.role === 'mod');
+    if (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+      return false;
+    }
+
+    const ok = data?.role === 'admin' || data?.role === 'mod';
+    setIsAdmin(ok);
+    return ok;
   };
 
   const fetchCharacters = async () => {
@@ -105,6 +125,17 @@ export const AdminCharactersPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
         <h1 className="text-2xl font-bold mb-4">请先登录</h1>
         <Link to="/" className="text-eva-secondary hover:underline">返回首页</Link>
+      </div>
+    );
+  }
+
+  if (!adminChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary mb-4"></div>
+          <p className="text-gray-400">Checking permissions...</p>
+        </div>
       </div>
     );
   }

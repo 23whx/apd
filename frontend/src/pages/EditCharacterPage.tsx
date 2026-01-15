@@ -12,6 +12,7 @@ export const EditCharacterPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminChecked, setAdminChecked] = useState(false);
   const [error, setError] = useState('');
 
   // 角色信息
@@ -19,25 +20,45 @@ export const EditCharacterPage: React.FC = () => {
   const [nameEn, setNameEn] = useState('');
   const [nameJp, setNameJp] = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [imageError, setImageError] = useState(false);
   const [workName, setWorkName] = useState('');
 
   useEffect(() => {
-    if (!authLoading) {
-      checkAdminStatus();
-      fetchCharacter();
+    if (authLoading) return;
+
+    if (!user) {
+      setAdminChecked(true);
+      setIsAdmin(false);
+      return;
     }
+
+    (async () => {
+      const ok = await checkAdminStatus();
+      setAdminChecked(true);
+      if (ok) {
+        fetchCharacter();
+      }
+    })();
   }, [id, user, authLoading]);
 
-  const checkAdminStatus = async () => {
-    if (!user) return;
+  const checkAdminStatus = async (): Promise<boolean> => {
+    if (!user) return false;
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('users')
       .select('role')
       .eq('id', user.id)
       .single();
 
-    setIsAdmin(data?.role === 'admin' || data?.role === 'mod');
+    if (error) {
+      console.error('Error checking admin status:', error);
+      setIsAdmin(false);
+      return false;
+    }
+
+    const ok = data?.role === 'admin' || data?.role === 'mod';
+    setIsAdmin(ok);
+    return ok;
   };
 
   const fetchCharacter = async () => {
@@ -141,6 +162,17 @@ export const EditCharacterPage: React.FC = () => {
     }
   };
 
+  if (!adminChecked || authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary mb-4"></div>
+          <p className="text-gray-400">Checking permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!user || !isAdmin) {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
@@ -234,20 +266,39 @@ export const EditCharacterPage: React.FC = () => {
             <input
               type="url"
               value={avatarUrl}
-              onChange={(e) => setAvatarUrl(e.target.value)}
+              onChange={(e) => {
+                setAvatarUrl(e.target.value);
+                setImageError(false);
+              }}
               placeholder="https://i.imgur.com/example.jpg"
-              className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+              className={`w-full bg-black/30 border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary ${
+                imageError ? 'border-red-500' : 'border-white/10'
+              }`}
             />
             {avatarUrl && (
-              <div className="mt-4 flex justify-center">
-                <img
-                  src={avatarUrl}
-                  alt="Character Preview"
-                  className="max-h-48 w-auto object-contain rounded-lg border border-white/10"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                  }}
-                />
+              <div className="mt-4">
+                {!imageError ? (
+                  <div className="flex justify-center">
+                    <img
+                      src={avatarUrl}
+                      alt="Character Preview"
+                      className="max-h-48 w-auto object-contain rounded-lg border border-white/10"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                        setImageError(true);
+                      }}
+                      onLoad={() => setImageError(false)}
+                    />
+                  </div>
+                ) : (
+                  <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-start gap-2 text-red-400 text-sm">
+                    <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">无法加载图片</p>
+                      <p>请检查链接是否正确，或尝试其他图片源。</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

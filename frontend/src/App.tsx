@@ -21,6 +21,10 @@ import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { TermsPage } from './pages/TermsPage';
 import { AboutPage } from './pages/AboutPage';
+import { BlogPage } from './pages/BlogPage';
+import { BlogDetailPage } from './pages/BlogDetailPage';
+import { AdminBlogPage } from './pages/AdminBlogPage';
+import { AdminWriteBlogPage } from './pages/AdminWriteBlogPage';
 import { detectAndSetLanguage } from './lib/geoLanguage';
 import './lib/i18n';
 
@@ -58,6 +62,14 @@ function AppContent() {
           <Route path="/admin/works/:id/edit" element={<EditWorkPage />} />
           <Route path="/admin/characters" element={<AdminCharactersPage />} />
           <Route path="/admin/characters/:id/edit" element={<EditCharacterPage />} />
+          <Route path="/admin/blog" element={<AdminBlogPage />} />
+          <Route path="/admin/blog/write" element={<AdminWriteBlogPage />} />
+          <Route path="/admin/blog/edit/:id" element={<AdminWriteBlogPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogDetailPage />} />
+          {/* Localized blog routes (recommended for global audience) */}
+          <Route path="/:lang/blog" element={<BlogPage />} />
+          <Route path="/:lang/blog/:slug" element={<BlogDetailPage />} />
           <Route path="/auth/callback" element={<AuthCallbackPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />

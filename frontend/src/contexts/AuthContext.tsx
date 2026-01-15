@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import type { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
@@ -19,10 +19,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const ensuredUserIdsRef = useRef<Set<string>>(new Set());
 
   const ensureUserProfile = async (_authUser: User) => {
-    // Disabled: User profiles are automatically created by database trigger
-    return;
+    // Best-effort: ensure a row exists in public.users for the auth user.
+    // This prevents admin checks and profile pages from failing when DB trigger is missing.
+    try {
+      // Avoid repeated calls (can happen on initial session + auth state change)
+      if (ensuredUserIdsRef.current.has(_authUser.id)) return;
+
+      // First check if row already exists; if yes, don't write (prevents noisy /users upsert calls)
+      const { data: existing, error: existsError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', _authUser.id)
+        .maybeSingle();
+
+      if (!existsError && existing?.id) {
+        ensuredUserIdsRef.current.add(_authUser.id);
+        return;
+      }
+
+      const username =
+        (_authUser.user_metadata as any)?.username ||
+        (_authUser.user_metadata as any)?.display_name ||
+        _authUser.email?.split('@')[0] ||
+        'User';
+
+      // Try insert only (avoid upsert noise). If it fails, stop retrying to prevent repeated 400s in Network.
+      const { error: insertError } = await supabase.from('users').insert({
+        id: _authUser.id,
+        username,
+        display_name: (_authUser.user_metadata as any)?.display_name || username,
+        avatar_id: 1,
+      });
+
+      if (insertError) {
+        ensuredUserIdsRef.current.add(_authUser.id);
+        console.warn('[Auth] ensureUserProfile insert failed:', insertError);
+        return;
+      }
+
+      ensuredUserIdsRef.current.add(_authUser.id);
+    } catch (e) {
+      // Ignore to avoid blocking auth; admin pages will show a clearer message.
+      ensuredUserIdsRef.current.add(_authUser.id);
+      console.warn('[Auth] ensureUserProfile failed (check users table + RLS + trigger):', e);
+    }
   };
 
   useEffect(() => {

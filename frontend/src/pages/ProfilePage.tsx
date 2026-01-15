@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { PRESET_AVATARS } from '../lib/types';
-import { User as UserIcon, Mail, Calendar, Save, Loader2 } from 'lucide-react';
+import { User as UserIcon, Mail, Calendar, Save, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonStats } from '../components/Skeleton';
 
@@ -23,6 +23,7 @@ export const ProfilePage: React.FC = () => {
   const [votesCast, setVotesCast] = useState(0);
   const [commentsCount, setCommentsCount] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -47,6 +48,7 @@ export const ProfilePage: React.FC = () => {
         setUsername(data.username || '');
         setDisplayName(data.display_name || '');
         setAvatarId(data.avatar_id || 1);
+        setIsAdmin(data.role === 'admin' || data.role === 'mod');
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -271,6 +273,19 @@ export const ProfilePage: React.FC = () => {
           </button>
         </form>
       </div>
+
+      {/* Admin Panel Button */}
+      {isAdmin && (
+        <div className="mt-8">
+          <button
+            onClick={() => navigate('/admin')}
+            className="w-full bg-gradient-to-r from-eva-secondary to-eva-accent text-white font-bold py-4 rounded-xl hover:opacity-90 transition-all flex items-center justify-center gap-3 shadow-lg"
+          >
+            <Shield className="w-6 h-6" />
+            <span className="text-lg">🔐 管理面板</span>
+          </button>
+        </div>
+      )}
 
       {/* My Activity */}
       <div className="mt-8 bg-eva-surface border border-white/10 rounded-xl p-8">

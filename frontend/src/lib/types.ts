@@ -128,6 +128,7 @@ export interface PersonalityVote {
   mbti?: MBTIType;
   enneagram?: EnneagramType;
   subtype?: SubtypeType;
+  tritype?: string;
   yi_hexagram?: string;
   created_at: string;
 }
@@ -136,6 +137,7 @@ export interface VoteStatistics {
   mbti: Record<string, number>;
   enneagram: Record<string, number>;
   subtype: Record<string, number>;
+  tritype: Record<string, number>;
   yi_hexagram: Record<string, number>;
 }
 

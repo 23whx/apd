@@ -27,6 +27,7 @@ export const CharacterDetailPage: React.FC = () => {
     mbti: {},
     enneagram: {},
     subtype: {},
+    tritype: {},
     yi_hexagram: {}
   });
   const [loading, setLoading] = useState(true);
@@ -84,7 +85,7 @@ export const CharacterDetailPage: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('personality_votes')
-        .select('mbti, enneagram, subtype, yi_hexagram')
+        .select('mbti, enneagram, subtype, tritype, yi_hexagram')
         .eq('character_id', id);
 
       if (error) {
@@ -97,6 +98,7 @@ export const CharacterDetailPage: React.FC = () => {
         mbti: {},
         enneagram: {},
         subtype: {},
+        tritype: {},
         yi_hexagram: {}
       };
 
@@ -104,6 +106,7 @@ export const CharacterDetailPage: React.FC = () => {
         if (vote.mbti) newStats.mbti[vote.mbti] = (newStats.mbti[vote.mbti] || 0) + 1;
         if (vote.enneagram) newStats.enneagram[vote.enneagram] = (newStats.enneagram[vote.enneagram] || 0) + 1;
         if (vote.subtype) newStats.subtype[vote.subtype] = (newStats.subtype[vote.subtype] || 0) + 1;
+        if (vote.tritype) newStats.tritype[vote.tritype] = (newStats.tritype[vote.tritype] || 0) + 1;
         if (vote.yi_hexagram) newStats.yi_hexagram[vote.yi_hexagram] = (newStats.yi_hexagram[vote.yi_hexagram] || 0) + 1;
       });
 
@@ -216,6 +219,7 @@ export const CharacterDetailPage: React.FC = () => {
           <VoteChart title={t('characterDetail.mbti')} data={stats.mbti} />
           <VoteChart title={t('characterDetail.enneagram')} data={stats.enneagram} />
           <VoteChart title={t('characterDetail.subtype')} data={stats.subtype} />
+          <VoteChart title="Tritype" data={stats.tritype} />
           <VoteChart title={t('characterDetail.yiHexagram')} data={stats.yi_hexagram} />
         </div>
       </div>

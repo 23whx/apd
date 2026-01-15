@@ -16,6 +16,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
   const [mbti, setMbti] = useState<string>('');
   const [enneagram, setEnneagram] = useState<string>('');
   const [subtype, setSubtype] = useState<string>('');
+  const [tritype, setTritype] = useState<string>('');
   const [yiHexagram, setYiHexagram] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -38,7 +39,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
       // 使用 maybeSingle 避免在没有投票记录时返回 406 错误
       const { data, error } = await supabase
         .from('personality_votes')
-        .select('mbti, enneagram, subtype, yi_hexagram')
+        .select('mbti, enneagram, subtype, tritype, yi_hexagram')
         .eq('character_id', characterId)
         .eq('user_id', user.id)
         .maybeSingle();
@@ -58,6 +59,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
         setMbti(data.mbti || '');
         setEnneagram(data.enneagram || '');
         setSubtype(data.subtype || '');
+        setTritype(data.tritype || '');
         setYiHexagram(data.yi_hexagram || '');
         setHasVoted(true);
       } else {
@@ -80,6 +82,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
         mbti: mbti || null,
         enneagram: enneagram || null,
         subtype: subtype || null,
+        tritype: tritype || null,
         yi_hexagram: yiHexagram || null
       };
 
@@ -183,6 +186,21 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
           </p>
         </div>
 
+        {/* Tritype */}
+        <div>
+          <label className="block text-sm font-medium mb-2 text-gray-300">Tritype</label>
+          <input
+            type="text"
+            value={tritype}
+            onChange={(e) => setTritype(e.target.value)}
+            placeholder="e.g., 358, 469, 125"
+            className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-eva-secondary placeholder-gray-600"
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Three Enneagram types (e.g., 358)
+          </p>
+        </div>
+
         {/* Yi Hexagram */}
         <div>
           <label className="block text-sm font-medium mb-2 text-gray-300">{t('votePanel.yiHexagram')}</label>
@@ -203,7 +221,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
 
         <button
           type="submit"
-          disabled={loading || (!mbti && !enneagram && !subtype && !yiHexagram)}
+          disabled={loading || (!mbti && !enneagram && !subtype && !tritype && !yiHexagram)}
           className="w-full bg-eva-secondary text-eva-bg font-bold py-2.5 rounded-lg hover:bg-eva-secondary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {loading && <Loader2 className="w-4 h-4 animate-spin" />}
