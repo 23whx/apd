@@ -1,27 +1,55 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Save, Eye, ArrowLeft, AlertCircle, Image as ImageIcon } from 'lucide-react';
+import { Save, Eye, ArrowLeft, AlertCircle, Image as ImageIcon, FolderOpen, X, Link2, FileText } from 'lucide-react';
 import MDEditor from '@uiw/react-md-editor';
 import { useTranslation } from 'react-i18next';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 type BlogLang = 'zh' | 'en' | 'ja';
 
 export const AdminWriteBlogPage: React.FC = () => {
   const { id } = useParams<{ id?: string }>();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, adminChecked } = useAuth();
   const { i18n } = useTranslation();
   const navigate = useNavigate();
   const isEditMode = !!id;
 
+  // 用于“新文章”编辑期间的媒体目录作用域，避免同一张图反复上传产生重复文件
+  const draftMediaScopeRef = useRef<string>(
+    `draft-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+
+  // 仅追踪“本次打开页面期间上传过的文件路径”，用于在编辑过程中做安全的自动清理
+  const sessionUploadedPathsRef = useRef<Set<string>>(new Set());
+  const deletingPathsRef = useRef<Set<string>>(new Set());
+
+  // 避免 useEffect 依赖 translationsDraft 导致频繁触发/闭包拿到旧值
+  const translationsDraftRef = useRef<
+    Record<BlogLang, { title: string; excerpt: string; content: string }>
+  >({
+    zh: { title: '', excerpt: '', content: '' },
+    en: { title: '', excerpt: '', content: '' },
+    ja: { title: '', excerpt: '', content: '' },
+  });
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  
+  // 图片库弹窗状态
+  const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [libraryImages, setLibraryImages] = useState<Array<{ name: string; url: string; path: string; created_at: string }>>([]);
+  const [loadingLibrary, setLoadingLibrary] = useState(false);
+  
+  // 文章链接选择器状态
+  const [showArticleSelector, setShowArticleSelector] = useState(false);
+  const [articleList, setArticleList] = useState<Array<{ id: string; title: string; slug: string; cover_image?: string; excerpt: string }>>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
+  const [articleLinkType, setArticleLinkType] = useState<'text' | 'card'>('text');
 
   // 文章数据
   const initialLang: BlogLang = (() => {
@@ -45,43 +73,25 @@ export const AdminWriteBlogPage: React.FC = () => {
   const [tags, setTags] = useState<string>('');
   const [published, setPublished] = useState(false);
 
+  const loadedPostRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (authLoading) return;
+    if (!user) return;
+    if (!adminChecked) return;
+    if (!isAdmin) return;
 
-    if (!user) {
-      setAdminChecked(true);
-      setIsAdmin(false);
-      return;
+    if (isEditMode && id && loadedPostRef.current !== id) {
+      loadedPostRef.current = id;
+      fetchBlogPost();
     }
+  }, [id, user?.id, authLoading, adminChecked, isAdmin]);
 
-    (async () => {
-      const ok = await checkAdminStatus();
-      setAdminChecked(true);
-      if (ok && isEditMode && id) {
-        fetchBlogPost();
-      }
-    })();
-  }, [id, user?.id, authLoading]);
+  useEffect(() => {
+    translationsDraftRef.current = translationsDraft;
+  }, [translationsDraft]);
 
-  const checkAdminStatus = async (): Promise<boolean> => {
-    if (!user) return false;
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-      return false;
-    }
-
-    const ok = data?.role === 'admin' || data?.role === 'mod';
-    setIsAdmin(ok);
-    return ok;
-  };
+  // admin 权限由 AuthContext 统一检查并缓存（避免每个页面重复请求 users.role）
 
   const fetchBlogPost = async () => {
     if (!id) return;
@@ -209,50 +219,46 @@ export const AdminWriteBlogPage: React.FC = () => {
   // 提取内容中的所有图片/视频 URL
   const extractMediaUrls = (text: string): string[] => {
     const urls: string[] = [];
-    const blogMediaPattern = /https:\/\/[^\/]+\.supabase\.co\/storage\/v1\/object\/public\/blog-media\/[^\s\)]+/g;
+    // 注意：video/img 的 src 可能包在引号里，所以这里要排除 " ' >
+    const blogMediaPattern =
+      /https:\/\/[^\/]+\.supabase\.co\/storage\/v1\/object\/public\/blog-media\/[^\s\)\"\'\>]+/g;
     const matches = text.match(blogMediaPattern);
     if (matches) {
-      urls.push(...matches);
+      urls.push(...matches.map((u) => u.replace(/[)"'\]>]+$/g, '')));
     }
     return urls;
   };
 
   // 从 URL 中提取文件路径
   const getFilePathFromUrl = (url: string): string | null => {
-    const match = url.match(/\/blog-media\/(.+)$/);
-    return match ? match[1] : null;
-  };
-
-  // 删除 Storage 中的文件
-  const deleteMediaFile = async (fileUrl: string) => {
+    const trimmed = url.trim().replace(/[)"'\]>]+$/g, '');
     try {
-      const filePath = getFilePathFromUrl(fileUrl);
-      if (!filePath) return;
-
-      const { error } = await supabase.storage
-        .from('blog-media')
-        .remove([filePath]);
-
-      if (error) {
-        console.error('Failed to delete file:', error);
-      } else {
-        console.log('Successfully deleted unused file:', filePath);
-      }
-    } catch (err) {
-      console.error('Error deleting file:', err);
+      const u = new URL(trimmed);
+      const marker = '/storage/v1/object/public/blog-media/';
+      const idx = u.pathname.indexOf(marker);
+      if (idx === -1) return null;
+      const path = u.pathname.slice(idx + marker.length);
+      return decodeURIComponent(path);
+    } catch {
+      const match = trimmed.match(/\/blog-media\/(.+)$/);
+      return match ? match[1] : null;
     }
   };
 
   // 清理未使用的媒体文件
   const cleanupUnusedMedia = async (oldContent: string, newContent: string, postId?: string) => {
     try {
-      const oldUrls = extractMediaUrls(oldContent);
-      const newUrls = extractMediaUrls(newContent);
+      const oldPaths = extractMediaUrls(oldContent)
+        .map(getFilePathFromUrl)
+        .filter((p): p is string => !!p);
+      const newPaths = extractMediaUrls(newContent)
+        .map(getFilePathFromUrl)
+        .filter((p): p is string => !!p);
 
       // 找出被删除的 URL
-      const deletedUrls = oldUrls.filter(url => !newUrls.includes(url));
+      const deletedPaths = oldPaths.filter((p) => !newPaths.includes(p));
 
-      if (deletedUrls.length === 0) return;
+      if (deletedPaths.length === 0) return;
 
       // 如果是编辑模式，检查这些 URL 是否在其他语言版本中使用
       if (postId) {
@@ -262,28 +268,30 @@ export const AdminWriteBlogPage: React.FC = () => {
           .eq('post_id', postId);
 
         if (translations) {
-          // 收集所有其他语言版本的 URL
-          const otherLangUrls = new Set<string>();
+          // 收集所有其他语言版本的文件路径
+          const otherLangPaths = new Set<string>();
           translations.forEach(trans => {
             if (trans.lang !== lang) {
-              const urls = extractMediaUrls(trans.content_md || '');
-              urls.forEach(url => otherLangUrls.add(url));
+              const paths = extractMediaUrls(trans.content_md || '')
+                .map(getFilePathFromUrl)
+                .filter((p): p is string => !!p);
+              paths.forEach((p) => otherLangPaths.add(p));
             }
           });
 
           // 只删除在所有语言版本中都不再使用的文件
-          for (const url of deletedUrls) {
-            if (!otherLangUrls.has(url)) {
-              await deleteMediaFile(url);
+          for (const path of deletedPaths) {
+            if (!otherLangPaths.has(path)) {
+              await supabase.storage.from('blog-media').remove([path]);
             } else {
-              console.log('File still used in other language versions:', url);
+              console.log('File still used in other language versions:', path);
             }
           }
         }
       } else {
         // 新文章，直接删除
-        for (const url of deletedUrls) {
-          await deleteMediaFile(url);
+        for (const path of deletedPaths) {
+          await supabase.storage.from('blog-media').remove([path]);
         }
       }
     } catch (err) {
@@ -291,14 +299,44 @@ export const AdminWriteBlogPage: React.FC = () => {
     }
   };
 
+  const getFileExtension = (file: File): string => {
+    const nameExt = (file.name || '').split('.').pop();
+    if (nameExt && nameExt !== file.name) return nameExt.toLowerCase();
+    const type = (file.type || '').toLowerCase();
+    if (type === 'image/png') return 'png';
+    if (type === 'image/jpeg') return 'jpg';
+    if (type === 'image/webp') return 'webp';
+    if (type === 'image/gif') return 'gif';
+    if (type === 'video/mp4') return 'mp4';
+    if (type === 'video/webm') return 'webm';
+    return 'bin';
+  };
+
+  const sha256Hex = async (file: File): Promise<string | null> => {
+    try {
+      // 需要 secure context（生产 https / 本地 localhost 都 OK）
+      if (!crypto?.subtle) return null;
+      const buf = await file.arrayBuffer();
+      const digest = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(digest))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+    } catch {
+      return null;
+    }
+  };
+
   // 上传图片/视频到 Supabase Storage
   const uploadMedia = async (file: File): Promise<string> => {
     setUploading(true);
     try {
-      // 生成唯一文件名
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileExt = getFileExtension(file);
+      const scope = isEditMode && id ? `posts/${id}` : `drafts/${draftMediaScopeRef.current}`;
+      const hash = await sha256Hex(file);
+      const fileName = hash
+        ? `${hash}.${fileExt}`
+        : `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${scope}/${fileName}`;
 
       // 上传到 Supabase Storage
       const { data, error: uploadError } = await supabase.storage
@@ -308,12 +346,21 @@ export const AdminWriteBlogPage: React.FC = () => {
           upsert: false,
         });
 
-      if (uploadError) throw uploadError;
+      // 如果同名（同哈希）已存在，就直接复用现有文件，避免 Bucket 出现两张一样的图（不同名字）
+      if (uploadError) {
+        const msg = (uploadError as any)?.message || '';
+        const status = (uploadError as any)?.statusCode || (uploadError as any)?.status;
+        const isAlreadyExists = status === 409 || /already exists/i.test(msg);
+        if (!isAlreadyExists) throw uploadError;
+      }
 
       // 获取公开 URL
+      const pathForUrl = data?.path || filePath;
       const { data: { publicUrl } } = supabase.storage
         .from('blog-media')
-        .getPublicUrl(data.path);
+        .getPublicUrl(pathForUrl);
+
+      sessionUploadedPathsRef.current.add(pathForUrl);
 
       return publicUrl;
     } catch (err: any) {
@@ -322,6 +369,248 @@ export const AdminWriteBlogPage: React.FC = () => {
       throw err;
     } finally {
       setUploading(false);
+    }
+  };
+
+  const cleanupSessionUploadedButUnreferenced = async () => {
+    const allTexts: string[] = [
+      translationsDraftRef.current.zh.content || '',
+      translationsDraftRef.current.en.content || '',
+      translationsDraftRef.current.ja.content || '',
+    ];
+
+    const referencedPaths = new Set<string>();
+    for (const text of allTexts) {
+      const paths = extractMediaUrls(text)
+        .map(getFilePathFromUrl)
+        .filter((p): p is string => !!p);
+      paths.forEach((p) => referencedPaths.add(p));
+    }
+
+    const candidates: string[] = [];
+    sessionUploadedPathsRef.current.forEach((p) => {
+      if (!referencedPaths.has(p)) candidates.push(p);
+    });
+
+    if (candidates.length === 0) return;
+
+    // 编辑模式下，避免误删“仍被其他语言（DB）引用”的媒体
+    let usedInDbPaths: Set<string> | null = null;
+    if (isEditMode && id) {
+      const { data: translations } = await supabase
+        .from('blog_post_translations')
+        .select('content_md')
+        .eq('post_id', id);
+
+      usedInDbPaths = new Set<string>();
+      (translations || []).forEach((t) => {
+        const paths = extractMediaUrls(t.content_md || '')
+          .map(getFilePathFromUrl)
+          .filter((p): p is string => !!p);
+        paths.forEach((p) => usedInDbPaths!.add(p));
+      });
+    }
+
+    for (const path of candidates) {
+      if (deletingPathsRef.current.has(path)) continue;
+      if (usedInDbPaths && usedInDbPaths.has(path)) continue;
+
+      deletingPathsRef.current.add(path);
+      try {
+        await supabase.storage.from('blog-media').remove([path]);
+        sessionUploadedPathsRef.current.delete(path);
+      } catch (err) {
+        console.error('Failed to cleanup unused session file:', path, err);
+      } finally {
+        deletingPathsRef.current.delete(path);
+      }
+    }
+  };
+
+  // 编辑过程中（含新文章）自动清理：只清理"本次会话上传且已不再被正文引用"的文件，避免 Bucket 残留
+  useEffect(() => {
+    const t = setTimeout(() => {
+      cleanupSessionUploadedButUnreferenced().catch((err) => {
+        console.error('Session media cleanup error:', err);
+      });
+    }, 1200);
+    return () => clearTimeout(t);
+  }, [content, lang]);
+
+  // 加载图片库
+  const loadMediaLibrary = async () => {
+    setLoadingLibrary(true);
+    try {
+      const images: Array<{ name: string; url: string; path: string; created_at: string }> = [];
+      
+      // 递归获取所有子目录的文件
+      const getAllFiles = async (prefix: string = '') => {
+        const { data: items } = await supabase.storage
+          .from('blog-media')
+          .list(prefix, {
+            limit: 1000,
+            sortBy: { column: 'created_at', order: 'desc' }
+          });
+
+        if (!items) return;
+
+        for (const item of items) {
+          const fullPath = prefix ? `${prefix}/${item.name}` : item.name;
+          
+          // 如果是目录，递归获取
+          if (item.id === null) {
+            await getAllFiles(fullPath);
+          } else {
+            // 只处理图片文件
+            if (item.name.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+              const { data: { publicUrl } } = supabase.storage
+                .from('blog-media')
+                .getPublicUrl(fullPath);
+              
+              images.push({
+                name: item.name,
+                url: publicUrl,
+                path: fullPath,
+                created_at: item.created_at || ''
+              });
+            }
+          }
+        }
+      };
+
+      await getAllFiles();
+      setLibraryImages(images);
+    } catch (err: any) {
+      console.error('Failed to load media library:', err);
+      alert(`加载图片库失败：${err.message}`);
+    } finally {
+      setLoadingLibrary(false);
+    }
+  };
+
+  // 从图片库选择图片
+  const selectImageFromLibrary = (imageUrl: string, imageName: string) => {
+    const imageMarkdown = `![${imageName}](${imageUrl})`;
+    
+    // 尝试在光标位置插入
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement;
+    if (textarea && textarea.selectionStart !== undefined) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.substring(0, start) + '\n' + imageMarkdown + '\n' + content.substring(end);
+      
+      // 保存当前滚动位置
+      const scrollY = window.scrollY;
+      const scrollX = window.scrollX;
+      
+      setContentForLang(newContent);
+      
+      // 关闭弹窗
+      setShowMediaLibrary(false);
+      
+      // 恢复滚动位置，防止页面跳动
+      setTimeout(() => {
+        window.scrollTo(scrollX, scrollY);
+      }, 0);
+    } else {
+      // 降级方案：添加到末尾
+      setContentForLang(content + '\n' + imageMarkdown);
+      setShowMediaLibrary(false);
+    }
+  };
+
+  // 加载站内文章列表
+  const loadArticleList = async () => {
+    setLoadingArticles(true);
+    try {
+      // 获取所有已发布的文章（只需要中文版本用于选择）
+      const { data, error } = await supabase
+        .from('blog_post_translations')
+        .select('post_id, title, slug, excerpt')
+        .eq('lang', 'zh')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (error) throw error;
+
+      // 获取封面图（从主表）
+      const postIds = (data || []).map(d => d.post_id);
+      const { data: posts } = await supabase
+        .from('blog_posts')
+        .select('id, cover_image')
+        .in('id', postIds)
+        .eq('published', true);
+
+      const postsMap = new Map(posts?.map(p => [p.id, p.cover_image]) || []);
+
+      const articles = (data || []).map(d => ({
+        id: d.post_id,
+        title: d.title,
+        slug: d.slug,
+        excerpt: d.excerpt,
+        cover_image: postsMap.get(d.post_id)
+      }));
+
+      setArticleList(articles);
+    } catch (err: any) {
+      console.error('Failed to load article list:', err);
+      alert(`加载文章列表失败：${err.message}`);
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  // 插入站内文章链接
+  const insertArticleLink = (article: { title: string; slug: string; cover_image?: string; excerpt: string }) => {
+    const currentLangCode = lang === 'zh' ? 'zh' : lang === 'ja' ? 'ja' : 'en';
+    const articleUrl = `/${currentLangCode}/blog/${article.slug}`;
+    
+    let linkMarkdown = '';
+    
+    if (articleLinkType === 'card') {
+      // 扁平化精美卡片形式：采用横向布局，只保留标题和提示，极大压缩空间
+      // 注意：不要让任意一行以 4 个空格开头，否则 Markdown 会识别为“缩进代码块”，预览区就只会显示源码
+      linkMarkdown = `
+<div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin: 20px 0; background: rgba(255,255,255,0.03); overflow: hidden; display: flex; align-items: stretch; min-height: 80px;">
+<a href="${articleUrl}" style="text-decoration: none; color: inherit; display: flex; width: 100%;">
+${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.05);"><img src="${article.cover_image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;" /></div>` : ''}
+<div style="padding: 12px 16px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0;">
+<h4 style="color: #fff; font-size: 1rem; font-weight: 600; margin: 0 0 4px 0; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${article.title}</h4>
+<div style="color: #8b5cf6; font-size: 0.85rem; font-weight: 500;">→ 阅读全文</div>
+</div>
+</a>
+</div>
+`;
+    } else {
+      // 普通链接形式
+      linkMarkdown = `[${article.title}](${articleUrl})`;
+    }
+    
+    // 在光标位置插入
+    const textarea = document.querySelector('.w-md-editor-text-input') as HTMLTextAreaElement;
+    if (textarea && textarea.selectionStart !== undefined) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      // 核心修复：确保 HTML 块前后都有两个换行符，且前后不带任何空格，强制打破代码块识别
+      const newContent = content.substring(0, start).trimEnd() + '\n\n' + linkMarkdown.trim() + '\n\n' + content.substring(end).trimStart();
+      
+      // 保存当前滚动位置
+      const scrollY = window.scrollY;
+      const scrollX = window.scrollX;
+      
+      setContentForLang(newContent);
+      
+      // 关闭弹窗
+      setShowArticleSelector(false);
+      
+      // 恢复滚动位置
+      setTimeout(() => {
+        window.scrollTo(scrollX, scrollY);
+      }, 0);
+    } else {
+      // 降级方案：添加到末尾
+      setContentForLang(content + '\n' + linkMarkdown);
+      setShowArticleSelector(false);
     }
   };
 
@@ -728,6 +1017,13 @@ export const AdminWriteBlogPage: React.FC = () => {
                   padding: '16px',
                 },
                 remarkPlugins: [remarkGfm],
+                rehypePlugins: [rehypeRaw],
+                // 确保预览区域允许所有 HTML 标签和样式属性
+                rehypeRewrite: (node: any) => {
+                  if (node.type === 'element' && node.tagName === 'div') {
+                    // 允许所有内联样式
+                  }
+                },
                 components: {
                   // 自定义组件渲染
                   video: ({ node, ...props }: any) => (
@@ -751,7 +1047,7 @@ export const AdminWriteBlogPage: React.FC = () => {
                 {
                   name: 'upload-image',
                   keyCommand: 'upload-image',
-                  buttonProps: { 'aria-label': '上传图片', title: '上传图片' },
+                  buttonProps: { 'aria-label': '上传图片', title: '上传新图片' },
                   icon: (
                     <svg width="12" height="12" viewBox="0 0 20 20">
                       <path fill="currentColor" d="M15 9c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm4-7H1c-.55 0-1 .45-1 1v14c0 .55.45 1 1 1h18c.55 0 1-.45 1-1V3c0-.55-.45-1-1-1zm-1 13l-6-5-2 2-4-5-4 8V4h16v11z"/>
@@ -779,6 +1075,34 @@ export const AdminWriteBlogPage: React.FC = () => {
                       }
                     };
                     input.click();
+                  },
+                },
+                {
+                  name: 'select-from-library',
+                  keyCommand: 'select-from-library',
+                  buttonProps: { 'aria-label': '从图片库选择', title: '从已上传的图片中选择' },
+                  icon: (
+                    <svg width="12" height="12" viewBox="0 0 20 20">
+                      <path fill="currentColor" d="M0 4c0-1.1.9-2 2-2h7l2 2h7c1.1 0 2 .9 2 2v10c0 1.1-.9 2-2 2H2c-1.1 0-2-.9-2-2V4zm2 2v10h16V6H2z"/>
+                    </svg>
+                  ),
+                  execute: () => {
+                    setShowMediaLibrary(true);
+                    loadMediaLibrary();
+                  },
+                },
+                {
+                  name: 'insert-article-link',
+                  keyCommand: 'insert-article-link',
+                  buttonProps: { 'aria-label': '插入站内文章链接', title: '插入站内文章链接' },
+                  icon: (
+                    <svg width="12" height="12" viewBox="0 0 20 20">
+                      <path fill="currentColor" d="M9.26 13a2 2 0 0 1 .01-2.01A3 3 0 0 0 9 5H5a3 3 0 0 0 0 6h.08a6.06 6.06 0 0 0 0 2H5A5 5 0 0 1 5 3h4a5 5 0 0 1 .26 10zm1.48-6a2 2 0 0 1-.01 2.01A3 3 0 0 0 11 15h4a3 3 0 0 0 0-6h-.08a6.06 6.06 0 0 0 0-2H15a5 5 0 0 1 0 10h-4a5 5 0 0 1-.26-10z"/>
+                    </svg>
+                  ),
+                  execute: () => {
+                    setShowArticleSelector(true);
+                    loadArticleList();
                   },
                 },
                 {
@@ -864,6 +1188,201 @@ export const AdminWriteBlogPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* 图片库弹窗 */}
+      {showMediaLibrary && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-eva-surface border border-white/20 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <FolderOpen className="w-6 h-6 text-eva-secondary" />
+                <h2 className="text-2xl font-bold text-white">图片库</h2>
+                <span className="text-sm text-gray-400">
+                  {libraryImages.length} 张图片
+                </span>
+              </div>
+              <button
+                onClick={() => setShowMediaLibrary(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            {/* 图片网格 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingLibrary ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-eva-secondary border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-400">加载图片库中...</p>
+                  </div>
+                </div>
+              ) : libraryImages.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <ImageIcon className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">图片库为空</p>
+                    <p className="text-gray-500 text-sm mt-2">上传新图片后会显示在这里</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {libraryImages.map((img) => (
+                    <div
+                      key={img.path}
+                      className="group relative bg-black/30 border border-white/10 rounded-lg overflow-hidden cursor-pointer hover:border-eva-secondary transition-all hover:scale-105"
+                      onClick={() => selectImageFromLibrary(img.url, img.name)}
+                    >
+                      <div className="aspect-square relative">
+                        <img
+                          src={img.url}
+                          alt={img.name}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                        {/* 悬停遮罩 */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="text-center px-4">
+                            <p className="text-white font-medium text-sm mb-2">点击插入</p>
+                            <p className="text-gray-300 text-xs truncate">{img.name}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 底部提示 */}
+            <div className="p-4 border-t border-white/10 bg-black/20">
+              <p className="text-sm text-gray-400 text-center">
+                💡 点击任意图片即可插入到文章中 · 多语言文章可复用同一张图片
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 文章选择器弹窗 */}
+      {showArticleSelector && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-eva-surface border border-white/20 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* 标题栏 */}
+            <div className="flex items-center justify-between p-6 border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <Link2 className="w-6 h-6 text-eva-secondary" />
+                <h2 className="text-2xl font-bold text-white">插入站内文章链接</h2>
+                <span className="text-sm text-gray-400">
+                  {articleList.length} 篇文章
+                </span>
+              </div>
+              <button
+                onClick={() => setShowArticleSelector(false)}
+                className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-6 h-6 text-gray-400" />
+              </button>
+            </div>
+
+            {/* 链接类型选择 */}
+            <div className="px-6 pt-4 flex items-center gap-4">
+              <span className="text-sm text-gray-400">链接样式：</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setArticleLinkType('text')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    articleLinkType === 'text'
+                      ? 'bg-eva-secondary text-eva-bg'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-4 h-4" />
+                    普通链接
+                  </div>
+                </button>
+                <button
+                  onClick={() => setArticleLinkType('card')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    articleLinkType === 'card'
+                      ? 'bg-eva-secondary text-eva-bg'
+                      : 'bg-white/5 text-gray-400 hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4" />
+                    卡片形式
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* 文章列表 */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {loadingArticles ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-eva-secondary border-t-transparent rounded-full animate-spin"></div>
+                    <p className="text-gray-400">加载文章列表中...</p>
+                  </div>
+                </div>
+              ) : articleList.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <div className="text-center">
+                    <FileText className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">暂无已发布的文章</p>
+                    <p className="text-gray-500 text-sm mt-2">发布文章后会显示在这里</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {articleList.map((article) => (
+                    <div
+                      key={article.id}
+                      className="group bg-black/30 border border-white/10 rounded-lg overflow-hidden cursor-pointer hover:border-eva-secondary transition-all hover:scale-[1.02]"
+                      onClick={() => insertArticleLink(article)}
+                    >
+                      <div className="flex gap-4 p-4">
+                        {article.cover_image && (
+                          <div className="flex-shrink-0 w-32 h-24 rounded overflow-hidden">
+                            <img
+                              src={article.cover_image}
+                              alt={article.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-white font-semibold text-lg mb-2 line-clamp-2">
+                            {article.title}
+                          </h3>
+                          <p className="text-gray-400 text-sm line-clamp-2">
+                            {article.excerpt || '暂无摘要'}
+                          </p>
+                          <div className="mt-2 text-eva-secondary text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
+                            → 点击插入
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 底部提示 */}
+            <div className="p-4 border-t border-white/10 bg-black/20">
+              <p className="text-sm text-gray-400 text-center">
+                💡 选择文章形式后，点击任意文章即可插入链接 · 卡片形式会显示封面和摘要
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

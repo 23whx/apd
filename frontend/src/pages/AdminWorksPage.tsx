@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -6,50 +6,23 @@ import { Edit, Trash2, AlertCircle, Search } from 'lucide-react';
 import type { Work } from '../lib/types';
 
 export const AdminWorksPage: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, adminChecked } = useAuth();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
+  const fetchedRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
-      setAdminChecked(true);
-      setIsAdmin(false);
-      return;
-    }
+    if (!user) return;
+    if (!adminChecked) return;
+    if (!isAdmin) return;
 
-    (async () => {
-      const ok = await checkAdminStatus();
-      setAdminChecked(true);
-      if (ok) {
-        fetchWorks();
-      }
-    })();
-  }, [authLoading, user?.id]);
-
-  const checkAdminStatus = async (): Promise<boolean> => {
-    if (!user) return false;
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-      return false;
-    }
-
-    const ok = data?.role === 'admin' || data?.role === 'mod';
-    setIsAdmin(ok);
-    return ok;
-  };
+    if (fetchedRef.current === user.id) return;
+    fetchedRef.current = user.id;
+    fetchWorks();
+  }, [authLoading, user?.id, adminChecked, isAdmin]);
 
   const fetchWorks = async () => {
     setLoading(true);

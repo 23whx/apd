@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Calendar, Eye, Tag, User } from 'lucide-react';
 import { CommentSection } from '../components/CommentSection';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 
 interface BlogPost {
   post_id: string;
@@ -26,28 +27,52 @@ interface BlogPost {
 export const BlogDetailPage: React.FC = () => {
   const { i18n } = useTranslation();
   const { slug, lang: langParam } = useParams<{ slug: string; lang?: string }>();
+  const navigate = useNavigate();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
+  const viewCountIncrementedRef = useRef<string | null>(null);
+
+  // 动态计算当前语言，确保响应 URL 参数和全局语言切换
+  const normalizeLang = (raw: string | undefined | null): 'zh' | 'en' | 'ja' => {
+    const v = (raw || 'en').toLowerCase();
+    if (v.startsWith('zh')) return 'zh';
+    if (v.startsWith('ja')) return 'ja';
+    return 'en';
+  };
+
+  const getCurrentLang = (): 'zh' | 'en' | 'ja' => normalizeLang(langParam || i18n.language);
+  const getDesiredLangFromI18n = (): 'zh' | 'en' | 'ja' => normalizeLang(i18n.language);
+
+  // 用户在 UI 切换语言时，同步更新 /:lang/blog/:slug 的 URL 前缀，保证查询的是对应语言的翻译
+  useEffect(() => {
+    if (!slug) return;
+    if (!langParam) return; // /blog/:slug 不强制改 URL
+
+    const urlLang = normalizeLang(langParam);
+    const desired = getDesiredLangFromI18n();
+    if (urlLang !== desired) {
+      navigate(`/${desired}/blog/${slug}`, { replace: true });
+    }
+  }, [slug, langParam, i18n.language, navigate]);
 
   useEffect(() => {
-    if (slug) {
-      fetchPost();
-      incrementViewCount();
-    }
+    if (!slug) return;
+    fetchPost();
   }, [slug, langParam, i18n.language]);
 
-  const currentLang = (() => {
-    const raw = (langParam || i18n.language || 'en').toLowerCase();
-    if (raw.startsWith('zh')) return 'zh';
-    if (raw.startsWith('ja')) return 'ja';
-    return 'en';
-  })();
-
-  const blogListLink = `/${currentLang}/blog`;
+  // Dev 环境 React.StrictMode 会让 effect 触发两次：这里确保同一篇文章只计数一次
+  useEffect(() => {
+    if (!slug) return;
+    if (viewCountIncrementedRef.current === slug) return;
+    viewCountIncrementedRef.current = slug;
+    incrementViewCount();
+  }, [slug]);
 
   const fetchPost = async () => {
     setLoading(true);
     try {
+      const currentLang = getCurrentLang();
+      
       // Prefer current language; fallback to zh
       const { data, error } = await supabase
         .from('blog_post_translations_with_author')
@@ -105,6 +130,9 @@ export const BlogDetailPage: React.FC = () => {
       </div>
     );
   }
+
+  const currentLang = getCurrentLang();
+  const blogListLink = `/${currentLang}/blog`;
 
   if (!post) {
     return (
@@ -185,7 +213,7 @@ export const BlogDetailPage: React.FC = () => {
 
         {/* Content */}
         <div className="prose prose-invert prose-lg max-w-none">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>
             {post.content_md}
           </ReactMarkdown>
         </div>

@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Shield, Users, FileText, MessageSquare, TrendingUp, Database, PenTool } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, adminChecked } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -15,8 +15,6 @@ export const AdminPage: React.FC = () => {
     totalComments: 0
   });
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
 
   useEffect(() => {
     // 等待 auth 加载完成后再检查权限
@@ -25,55 +23,13 @@ export const AdminPage: React.FC = () => {
       navigate('/');
       return;
     }
-    checkAdminAccess();
-  }, [authLoading, user?.id]); // wait for user to be ready
-
-  const checkAdminAccess = async () => {
-    const currentUser = user;
-    if (!currentUser) {
-      setAdminChecked(true);
-      setIsAdmin(false);
+    if (!adminChecked) return;
+    if (!isAdmin) {
+      navigate('/');
       return;
     }
-
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', currentUser.id)
-        .single();
-
-      if (error || !data) {
-        console.error('Admin permission check failed:', error);
-        // Common case: public.users row missing for this auth user (trigger not set up)
-        const msg =
-          (error as any)?.message?.includes('JSON object requested') ||
-          (error as any)?.code === 'PGRST116'
-            ? 'Access denied: 找不到你的用户资料（public.users）。请在 Supabase 创建 users 资料/触发器后再试。'
-            : 'Access denied: Unable to verify your permissions. 请检查 Supabase 连接与 users 表权限。';
-        alert(msg);
-        navigate('/');
-        setAdminChecked(true);
-        return;
-      }
-
-      if (data.role !== 'admin' && data.role !== 'mod') {
-        alert(`Access denied!\n\nYour role: ${data.role || 'not set'}\nRequired: admin or mod`);
-        navigate('/');
-        setAdminChecked(true);
-        return;
-      }
-
-      setIsAdmin(true);
-      setAdminChecked(true);
-      fetchStats();
-    } catch (error: any) {
-      console.error('Error checking admin access:', error.message);
-      alert('An error occurred while verifying permissions.');
-      navigate('/');
-      setAdminChecked(true);
-    }
-  };
+    fetchStats();
+  }, [authLoading, user?.id, adminChecked, isAdmin]); // wait for user+admin to be ready
 
   const fetchStats = async () => {
     setLoading(true);

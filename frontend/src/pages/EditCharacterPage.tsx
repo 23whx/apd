@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -6,14 +6,13 @@ import { Save, AlertCircle, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 
 export const EditCharacterPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, adminChecked } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
   const [error, setError] = useState('');
+  const fetchedRef = useRef<string | null>(null);
 
   // 角色信息
   const [nameCn, setNameCn] = useState('');
@@ -26,40 +25,16 @@ export const EditCharacterPage: React.FC = () => {
   useEffect(() => {
     if (authLoading) return;
 
-    if (!user) {
-      setAdminChecked(true);
-      setIsAdmin(false);
-      return;
-    }
+    if (!user) return;
+    if (!adminChecked) return;
+    if (!isAdmin) return;
 
-    (async () => {
-      const ok = await checkAdminStatus();
-      setAdminChecked(true);
-      if (ok) {
-        fetchCharacter();
-      }
-    })();
-  }, [id, user, authLoading]);
+    if (fetchedRef.current === (id ?? null)) return;
+    fetchedRef.current = id ?? null;
+    fetchCharacter();
+  }, [id, user?.id, authLoading, adminChecked, isAdmin]);
 
-  const checkAdminStatus = async (): Promise<boolean> => {
-    if (!user) return false;
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-      return false;
-    }
-
-    const ok = data?.role === 'admin' || data?.role === 'mod';
-    setIsAdmin(ok);
-    return ok;
-  };
+  // admin 权限由 AuthContext 统一检查并缓存
 
   const fetchCharacter = async () => {
     if (!id) return;

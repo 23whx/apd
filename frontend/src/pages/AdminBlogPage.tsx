@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
@@ -6,8 +6,6 @@ import { Plus, Edit, Trash2, AlertCircle, Search, Eye, EyeOff } from 'lucide-rea
 
 interface BlogPost {
   id: string;
-  post_id?: string;
-  lang?: string;
   title: string;
   slug: string;
   category: string;
@@ -15,77 +13,87 @@ interface BlogPost {
   view_count: number;
   created_at: string;
   updated_at: string;
+  langs: Array<'zh' | 'en' | 'ja'>;
 }
 
 export const AdminBlogPage: React.FC = () => {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin, adminChecked } = useAuth();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
+  const fetchedOnceForUserRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
 
     if (!user) {
-      setAdminChecked(true);
-      setIsAdmin(false);
       return;
     }
 
-    (async () => {
-      const ok = await checkAdminStatus();
-      setAdminChecked(true);
-      if (ok) {
-        fetchPosts();
-      }
-    })();
-  }, [authLoading, user]);
+    if (!adminChecked) return;
+    if (!isAdmin) return;
 
-  const checkAdminStatus = async (): Promise<boolean> => {
-    if (!user) return false;
-
-    const { data, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (error) {
-      console.error('Error checking admin status:', error);
-      setIsAdmin(false);
-      return false;
-    }
-
-    const ok = data?.role === 'admin' || data?.role === 'mod';
-    setIsAdmin(ok);
-    return ok;
-  };
+    // Dev 模式 StrictMode 可能重复触发：同一用户只拉一次列表
+    if (fetchedOnceForUserRef.current === user.id) return;
+    fetchedOnceForUserRef.current = user.id;
+    fetchPosts();
+  }, [authLoading, user?.id, adminChecked, isAdmin]);
 
   const fetchPosts = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        // Admin list uses zh as default display language for now
-        .from('blog_post_translations_with_author')
-        .select('post_id, lang, title, slug, category, published, view_count, created_at, updated_at')
-        .eq('lang', 'zh')
+      // 后台应展示所有主文章；标题优先显示中文，其次英文/日文（即使缺少中文翻译也不要“消失”）
+      const { data: masters, error: masterErr } = await supabase
+        .from('blog_posts')
+        .select('id, slug, category, published, view_count, created_at, updated_at')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPosts((data || []).map((row: any) => ({
-        id: row.post_id,
-        post_id: row.post_id,
-        lang: row.lang,
-        title: row.title,
-        slug: row.slug,
-        category: row.category,
-        published: row.published,
-        view_count: row.view_count,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
-      })));
+      if (masterErr) throw masterErr;
+
+      const ids = (masters || []).map((m: any) => m.id);
+      const { data: translations, error: tErr } = await supabase
+        .from('blog_post_translations')
+        .select('post_id, lang, title')
+        .in('post_id', ids);
+
+      if (tErr) throw tErr;
+
+      const titleByPostId = new Map<string, Partial<Record<'zh' | 'en' | 'ja', string>>>();
+      const langsByPostId = new Map<string, Set<'zh' | 'en' | 'ja'>>();
+
+      (translations || []).forEach((t: any) => {
+        const lang = t.lang as 'zh' | 'en' | 'ja';
+        if (!titleByPostId.has(t.post_id)) titleByPostId.set(t.post_id, {});
+        titleByPostId.get(t.post_id)![lang] = t.title;
+
+        if (!langsByPostId.has(t.post_id)) langsByPostId.set(t.post_id, new Set());
+        langsByPostId.get(t.post_id)!.add(lang);
+      });
+
+      const langOrder: Array<'zh' | 'en' | 'ja'> = ['zh', 'en', 'ja'];
+
+      setPosts(
+        (masters || []).map((m: any) => {
+          const titles = titleByPostId.get(m.id) || {};
+          const langs = Array.from(
+            langsByPostId.get(m.id) || new Set<'zh' | 'en' | 'ja'>()
+          ).sort((a, b) => langOrder.indexOf(a) - langOrder.indexOf(b));
+
+          const title = titles.zh || titles.en || titles.ja || '(未填写标题)';
+
+          return {
+            id: m.id,
+            title,
+            slug: m.slug,
+            category: m.category,
+            published: m.published,
+            view_count: m.view_count,
+            created_at: m.created_at,
+            updated_at: m.updated_at,
+            langs,
+          } as BlogPost;
+        })
+      );
     } catch (error) {
       console.error('Error fetching posts:', error);
     } finally {
@@ -240,6 +248,13 @@ export const AdminBlogPage: React.FC = () => {
                         <div>
                           <div className="font-medium text-white">{post.title}</div>
                           <div className="text-sm text-gray-400 font-mono">/{post.slug}</div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {post.langs.map((l) => (
+                              <span key={l} className="inline-flex px-2 py-0.5 text-xs rounded bg-white/5 text-gray-400">
+                                {l.toUpperCase()}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
