@@ -57,6 +57,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // If user has no email (e.g., certain auth providers / phone auth), don't attempt an insert that would violate NOT NULL.
       if (!_authUser.email) {
         ensuredUserIdsRef.current.add(_authUser.id);
+        ensuringUserIdsRef.current.delete(_authUser.id);
+        return;
+      }
+
+      // If profile already exists, skip writes entirely (avoids noisy 409 conflicts)
+      const { data: existing, error: existsError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', _authUser.id)
+        .maybeSingle();
+
+      if (!existsError && existing?.id) {
+        ensuredUserIdsRef.current.add(_authUser.id);
+        ensuringUserIdsRef.current.delete(_authUser.id);
+        return;
+      }
+
+      // If we can't verify existence due to network/RLS issues, don't spam writes; retry next time.
+      if (existsError) {
+        ensuringUserIdsRef.current.delete(_authUser.id);
         return;
       }
 

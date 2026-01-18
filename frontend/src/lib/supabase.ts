@@ -7,7 +7,26 @@ const supabaseUrl =
 const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ?? 'public-anon-key';
 
+const DEFAULT_FETCH_TIMEOUT_MS = 15000;
+
+const fetchWithTimeout: typeof fetch = async (input, init) => {
+  // If caller already provides a signal, respect it (avoid clobbering).
+  if (init?.signal) return fetch(input, init);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DEFAULT_FETCH_TIMEOUT_MS);
+
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    fetch: fetchWithTimeout,
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,

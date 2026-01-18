@@ -50,7 +50,12 @@ const resources = {
         terms: 'Terms of Service',
         about: 'About',
         api: 'API',
-        copyright: '© 2025 APD Project. All data sources belong to their respective owners.'
+        copyright: '© 2025 APD Project. All data sources belong to their respective owners.',
+        description: 'ACGN Personality Database - Explore character personalities through community voting and discussion.',
+        quickLinks: 'Quick Links',
+        relatedProjects: 'Related Projects',
+        madeWith: 'Made with',
+        byRollkey: 'by Rollkey'
       },
       profile: {
         title: 'Profile Settings',
@@ -135,8 +140,27 @@ const resources = {
         },
         noArticles: 'No articles yet',
         readMore: 'READ MORE',
+        readOriginal: 'Visit Original',
+        externalLink: 'External',
         showingCount: 'Showing {{count}} articles',
-        views: 'views'
+        views: 'views',
+        backToBlogList: 'Back to Blog List',
+        viewMoreArticles: 'View More Articles',
+        articleNotFound: 'Article Not Found',
+        readCount: '{{count}} views',
+        tags: 'Tags',
+        sortNewest: 'Newest First',
+        sortOldest: 'Oldest First',
+        networkError: 'Network error: failed to load posts.',
+        retry: 'Retry',
+        networkHint: 'If this persists, check VPN/proxy/firewall or whether your network blocks Supabase/Google requests.',
+        share: 'Share',
+        shareTitle: 'Share Article',
+        weibo: 'Weibo',
+        copy: 'Copy',
+        copied: 'Copied!',
+        shareNotice: 'Share this article with your friends',
+        copyDisabled: 'Content copying is disabled. Please share via the share button.'
       }
     }
   },
@@ -188,7 +212,12 @@ const resources = {
         terms: '服务条款',
         about: '关于',
         api: 'API',
-        copyright: '© 2025 APD 项目。所有数据源归其各自所有者所有。'
+        copyright: '© 2025 APD 项目。所有数据源归其各自所有者所有。',
+        description: 'ACGN 人格数据库 - 通过社区投票和讨论探索角色人格。',
+        quickLinks: '快速链接',
+        relatedProjects: '相关项目',
+        madeWith: '用',
+        byRollkey: '制作 by Rollkey'
       },
       profile: {
         title: '个人设置',
@@ -273,8 +302,27 @@ const resources = {
         },
         noArticles: '暂无文章',
         readMore: '阅读更多',
+        readOriginal: '访问原文',
+        externalLink: '外链',
         showingCount: '显示 {{count}} 篇文章',
-        views: '次浏览'
+        views: '次浏览',
+        backToBlogList: '返回博客列表',
+        viewMoreArticles: '查看更多文章',
+        articleNotFound: '文章未找到',
+        readCount: '{{count}} 次阅读',
+        tags: '标签',
+        sortNewest: '最新在前',
+        sortOldest: '最早在前',
+        networkError: '网络异常：无法加载文章列表。',
+        retry: '重试',
+        networkHint: '如果一直失败，请检查 VPN/代理/防火墙，或当前网络是否拦截 Supabase/Google 请求。',
+        share: '分享',
+        shareTitle: '分享文章',
+        weibo: '微博',
+        copy: '复制',
+        copied: '已复制！',
+        shareNotice: '将这篇文章分享给你的朋友',
+        copyDisabled: '内容复制已禁用，请通过分享按钮分享文章。'
       }
     }
   },
@@ -325,7 +373,12 @@ const resources = {
         terms: '利用規約',
         about: 'について',
         api: 'API',
-        copyright: '© 2025 APD プロジェクト。すべてのデータソースはそれぞれの所有者に帰属します。'
+        copyright: '© 2025 APD プロジェクト。すべてのデータソースはそれぞれの所有者に帰属します。',
+        description: 'ACGN パーソナリティデータベース - コミュニティ投票とディスカッションを通じてキャラクター性格を探索。',
+        quickLinks: 'クイックリンク',
+        relatedProjects: '関連プロジェクト',
+        madeWith: '',
+        byRollkey: '💚で作成 by Rollkey'
       },
       profile: {
         title: 'プロフィール設定',
@@ -410,8 +463,27 @@ const resources = {
         },
         noArticles: '記事はまだありません',
         readMore: '続きを読む',
+        readOriginal: '元記事を見る',
+        externalLink: '外部リンク',
         showingCount: '{{count}}件の記事を表示',
-        views: '閲覧'
+        views: '閲覧',
+        backToBlogList: 'ブログ一覧に戻る',
+        viewMoreArticles: 'もっと記事を見る',
+        articleNotFound: '記事が見つかりません',
+        readCount: '{{count}}回閲覧',
+        tags: 'タグ',
+        sortNewest: '新しい順',
+        sortOldest: '古い順',
+        networkError: 'ネットワークエラー：記事一覧を読み込めません。',
+        retry: '再試行',
+        networkHint: '解決しない場合は VPN/プロキシ/ファイアウォール、またはネットワークが Supabase/Google をブロックしていないか確認してください。',
+        share: 'シェア',
+        shareTitle: '記事をシェア',
+        weibo: 'Weibo',
+        copy: 'コピー',
+        copied: 'コピーしました！',
+        shareNotice: 'この記事を友達とシェア',
+        copyDisabled: 'コンテンツのコピーは無効です。シェアボタンから共有してください。'
       }
     }
   }

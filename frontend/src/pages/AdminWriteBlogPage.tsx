@@ -216,6 +216,13 @@ export const AdminWriteBlogPage: React.FC = () => {
     }
   };
 
+  // 当语言切换时，如果文章选择器是打开的，重新加载对应语言的文章列表
+  useEffect(() => {
+    if (showArticleSelector) {
+      loadArticleList();
+    }
+  }, [lang, showArticleSelector]);
+
   // 提取内容中的所有图片/视频 URL
   const extractMediaUrls = (text: string): string[] => {
     const urls: string[] = [];
@@ -523,11 +530,11 @@ export const AdminWriteBlogPage: React.FC = () => {
   const loadArticleList = async () => {
     setLoadingArticles(true);
     try {
-      // 获取所有已发布的文章（只需要中文版本用于选择）
+      // 获取所有已发布的文章（使用当前编辑语言）
       const { data, error } = await supabase
         .from('blog_post_translations')
         .select('post_id, title, slug, excerpt')
-        .eq('lang', 'zh')
+        .eq('lang', lang)
         .order('created_at', { ascending: false })
         .limit(100);
 
@@ -549,7 +556,9 @@ export const AdminWriteBlogPage: React.FC = () => {
         slug: d.slug,
         excerpt: d.excerpt,
         cover_image: postsMap.get(d.post_id)
-      }));
+      }))
+      // 排除当前正在编辑的文章
+      .filter(a => !id || a.id !== id);
 
       setArticleList(articles);
     } catch (err: any) {
@@ -570,12 +579,14 @@ export const AdminWriteBlogPage: React.FC = () => {
     if (articleLinkType === 'card') {
       // 扁平化精美卡片形式：采用横向布局，只保留标题和提示，极大压缩空间
       // 注意：不要让任意一行以 4 个空格开头，否则 Markdown 会识别为“缩进代码块”，预览区就只会显示源码
+      // 重要：不要使用 h1-h6（例如 h4），否则 md-editor/rehype 可能会为标题自动插入锚点 <a>，
+      // 如果我们外层又是 <a>，就会触发 “<a> cannot be a descendant of <a>” 的嵌套错误。
       linkMarkdown = `
 <div style="border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; margin: 20px 0; background: rgba(255,255,255,0.03); overflow: hidden; display: flex; align-items: stretch; min-height: 80px;">
 <a href="${articleUrl}" style="text-decoration: none; color: inherit; display: flex; width: 100%;">
 ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0; border-right: 1px solid rgba(255,255,255,0.05);"><img src="${article.cover_image}" alt="${article.title}" style="width: 100%; height: 100%; object-fit: cover;" /></div>` : ''}
 <div style="padding: 12px 16px; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0;">
-<h4 style="color: #fff; font-size: 1rem; font-weight: 600; margin: 0 0 4px 0; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${article.title}</h4>
+<div style="color: #fff; font-size: 1rem; font-weight: 600; margin: 0 0 4px 0; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${article.title}</div>
 <div style="color: #8b5cf6; font-size: 0.85rem; font-weight: 500;">→ 阅读全文</div>
 </div>
 </a>
@@ -1004,7 +1015,6 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
               hideToolbar={false}
               enableScroll={true}
               visibleDragbar={false}
-              visiableDragbar={false}
               style={{
                 backgroundColor: 'rgba(0, 0, 0, 0.3)',
                 border: '1px solid rgba(255, 255, 255, 0.1)',

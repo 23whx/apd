@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { User, Hexagon, Globe, LogOut, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,9 +9,18 @@ import { supabase } from '../lib/supabase';
 export const Navbar: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { user, signOut } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [displayName, setDisplayName] = useState<string>('');
+
+  const normalizeLang = (raw: string | undefined | null): 'en' | 'zh' | 'ja' => {
+    const v = (raw || 'en').toLowerCase();
+    if (v.startsWith('zh')) return 'zh';
+    if (v.startsWith('ja')) return 'ja';
+    return 'en';
+  };
 
   useEffect(() => {
     if (user) {
@@ -84,14 +93,30 @@ export const Navbar: React.FC = () => {
 
   const toggleLanguage = () => {
     const languages = ['en', 'zh', 'ja'];
-    const currentIndex = languages.indexOf(i18n.language);
+    const current = normalizeLang(i18n.language);
+    const currentIndex = languages.indexOf(current);
     const nextIndex = (currentIndex + 1) % languages.length;
-    i18n.changeLanguage(languages[nextIndex]);
+    const nextLang = languages[nextIndex];
+    i18n.changeLanguage(nextLang);
+
+    // 同步 blog 路由的语言前缀（只对 /blog 与 /:lang/blog 生效，避免影响其它非多语言路由）
+    const path = location.pathname;
+    const m1 = path.match(/^\/(en|zh|ja)\/blog(\/.*)?$/);
+    if (m1) {
+      const rest = m1[2] || '';
+      navigate(`/${nextLang}/blog${rest}`, { replace: true });
+      return;
+    }
+    const m2 = path.match(/^\/blog(\/.*)?$/);
+    if (m2) {
+      const rest = m2[1] || '';
+      navigate(`/${nextLang}/blog${rest}`, { replace: true });
+    }
   };
 
   const getLanguageLabel = () => {
     const labels: Record<string, string> = { en: 'EN', zh: '中', ja: '日' };
-    return labels[i18n.language] || 'EN';
+    return labels[normalizeLang(i18n.language)] || 'EN';
   };
 
   return (

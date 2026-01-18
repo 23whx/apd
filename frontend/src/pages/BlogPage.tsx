@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Search, BookOpen, Calendar, Eye } from 'lucide-react';
+import { Search, BookOpen, Calendar, Eye, ArrowDownWideNarrow, ArrowUpNarrowWide, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 interface BlogPost {
@@ -17,36 +17,52 @@ interface BlogPost {
   published_at: string;
   author_username: string;
   author_avatar_id: number;
+  article_type?: string;
+  external_url?: string;
 }
 
 export const BlogPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { lang: langParam } = useParams<{ lang?: string }>();
+  const navigate = useNavigate();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = 最新在前, asc = 最旧在前
+  const fetchSeqRef = useRef(0);
 
-  useEffect(() => {
-    fetchPosts();
-  }, [langParam, i18n.language]);
-
-  const currentLang = (() => {
-    const raw = (langParam || i18n.language || 'en').toLowerCase();
-    if (raw.startsWith('zh')) return 'zh';
-    if (raw.startsWith('ja')) return 'ja';
+  const normalizeLang = (raw: string | undefined | null): 'zh' | 'en' | 'ja' => {
+    const v = (raw || 'en').toLowerCase();
+    if (v.startsWith('zh')) return 'zh';
+    if (v.startsWith('ja')) return 'ja';
     return 'en';
-  })();
+  };
 
-  const fetchPosts = async () => {
+  // 当前页面语言：优先 URL，其次 i18n
+  const currentLang = normalizeLang(langParam || i18n.language);
+  const desiredLang = normalizeLang(i18n.language);
+
+  // 当用户切换 i18n 语言时，同步 /:lang/blog 的 URL 前缀，否则 URL 会一直停留在 en
+  useEffect(() => {
+    if (!langParam) return; // /blog 路由不强制改 URL
+    if (currentLang !== desiredLang) {
+      navigate(`/${desiredLang}/blog`, { replace: true });
+    }
+  }, [langParam, currentLang, desiredLang, navigate]);
+
+  const fetchPosts = useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
+      setFetchError(null);
       const { data, error } = await supabase
         .from('blog_post_translations_with_author')
         .select('*')
         .eq('published', true)
         .in('lang', [currentLang, 'zh'])
-        .order('published_at', { ascending: false });
+        .order('published_at', { ascending: sortOrder === 'asc' });
 
       if (error) throw error;
 
@@ -64,13 +80,26 @@ export const BlogPage: React.FC = () => {
         }
       });
 
-      setPosts(Array.from(byPost.values()));
+      // 防止“语言切换时请求乱序返回”导致用旧语言覆盖新语言
+      if (seq === fetchSeqRef.current) {
+        setPosts(Array.from(byPost.values()));
+      }
     } catch (error) {
       console.error('Error fetching posts:', error);
+      // Typical browser network failures (ERR_CONNECTION_CLOSED / offline / blocked) surface as TypeError: Failed to fetch
+      if (seq === fetchSeqRef.current) {
+        setFetchError(t('blog.networkError'));
+      }
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
-  };
+  }, [currentLang, sortOrder]);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
 
   const categories = [
     { value: 'all', label: t('blog.categories.all'), icon: '📚' },
@@ -95,14 +124,24 @@ export const BlogPage: React.FC = () => {
   });
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('zh-CN', {
+    // Map i18n language to locale
+    const localeMap: Record<string, string> = {
+      'zh': 'zh-CN',
+      'zh-CN': 'zh-CN',
+      'en': 'en-US',
+      'ja': 'ja-JP'
+    };
+    const locale = localeMap[i18n.language] || 'en-US';
+    
+    return new Date(dateString).toLocaleDateString(locale, {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
   };
 
-  const getPostLink = (post: BlogPost) => `/${post.lang}/blog/${post.slug}`;
+  // 链接保持与当前页面语言一致；当该语言缺翻译时，详情页会自动回退到中文内容
+  const getPostLink = (post: BlogPost) => `/${currentLang}/blog/${post.slug}`;
 
   const getCategoryStyles = (category: string) => {
     switch (category) {
@@ -179,21 +218,55 @@ export const BlogPage: React.FC = () => {
           />
         </div>
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
+        {/* Category Filter and Sort */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between mb-4">
+          <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => (
+              <button
+                key={cat.value}
+                onClick={() => setSelectedCategory(cat.value)}
+                className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                  selectedCategory === cat.value
+                    ? 'bg-eva-secondary text-eva-bg'
+                    : 'bg-eva-surface border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+                }`}
+              >
+                {cat.icon} {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort Order Toggle (Modern Segmented Control) */}
+          <div className="relative bg-black/40 p-1 rounded-xl border border-white/10 flex items-center shadow-lg shadow-black/50">
+            {/* Sliding Background */}
+            <div 
+              className={`absolute h-[calc(100%-8px)] transition-all duration-300 ease-out bg-eva-secondary rounded-lg shadow-[0_0_15px_rgba(163,230,53,0.3)]`}
+              style={{
+                width: 'calc(50% - 4px)',
+                left: sortOrder === 'desc' ? '4px' : 'calc(50%)',
+              }}
+            />
+            
             <button
-              key={cat.value}
-              onClick={() => setSelectedCategory(cat.value)}
-              className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                selectedCategory === cat.value
-                  ? 'bg-eva-secondary text-eva-bg'
-                  : 'bg-eva-surface border border-white/10 text-gray-400 hover:text-white hover:border-white/30'
+              onClick={() => setSortOrder('desc')}
+              className={`relative z-10 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors duration-300 flex items-center gap-2 min-w-[90px] justify-center ${
+                sortOrder === 'desc' ? 'text-eva-bg' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
-              {cat.icon} {cat.label}
+              <ArrowDownWideNarrow className="w-3.5 h-3.5" />
+              <span>{t('blog.sortNewest')}</span>
             </button>
-          ))}
+            
+            <button
+              onClick={() => setSortOrder('asc')}
+              className={`relative z-10 px-4 py-1.5 rounded-lg text-xs font-bold transition-colors duration-300 flex items-center gap-2 min-w-[90px] justify-center ${
+                sortOrder === 'asc' ? 'text-eva-bg' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              <ArrowUpNarrowWide className="w-3.5 h-3.5" />
+              <span>{t('blog.sortOldest')}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -201,6 +274,19 @@ export const BlogPage: React.FC = () => {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-eva-secondary"></div>
+        </div>
+      ) : fetchError ? (
+        <div className="bg-eva-surface border border-white/10 rounded-xl p-8 text-center">
+          <p className="text-gray-300 mb-4">{fetchError}</p>
+          <button
+            onClick={() => fetchPosts()}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-eva-secondary text-eva-bg font-bold hover:bg-eva-secondary/80 transition-colors"
+          >
+            {t('blog.retry')}
+          </button>
+          <p className="text-xs text-gray-500 mt-4">
+            {t('blog.networkHint')}
+          </p>
         </div>
       ) : filteredPosts.length === 0 ? (
         <div className="text-center py-12 bg-eva-surface border border-white/10 rounded-xl">
@@ -210,12 +296,11 @@ export const BlogPage: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredPosts.map((post) => {
             const styles = getCategoryStyles(post.category);
-            return (
-              <Link
-                key={post.post_id}
-                to={getPostLink(post)}
-                className={`group bg-eva-surface border ${styles.borderColor} rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300 flex flex-col`}
-              >
+            const isExternal = post.article_type === 'external';
+            
+            // Common card content
+            const cardContent = (
+              <>
                 {/* Cover Image or Aesthetic Placeholder */}
                 {post.cover_image ? (
                   <div className="h-40 bg-gray-800 relative overflow-hidden">
@@ -225,6 +310,13 @@ export const BlogPage: React.FC = () => {
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-eva-surface to-transparent opacity-80"></div>
+                    {/* External link badge on cover */}
+                    {isExternal && (
+                      <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-[10px] text-eva-secondary font-mono">
+                        <ExternalLink className="w-3 h-3" />
+                        {t('blog.externalLink')}
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className={`h-40 bg-gradient-to-br ${styles.gradient} flex items-center justify-center relative overflow-hidden`}>
@@ -239,6 +331,13 @@ export const BlogPage: React.FC = () => {
                       </div>
                       <BookOpen className={`w-10 h-10 ${styles.iconColor.replace('/30', '/80')}`} />
                     </div>
+                    {/* External link badge on placeholder */}
+                    {isExternal && (
+                      <div className="absolute top-3 right-3 bg-black/40 backdrop-blur-sm px-2 py-1 rounded-full flex items-center gap-1 text-[10px] text-eva-secondary font-mono">
+                        <ExternalLink className="w-3 h-3" />
+                        {t('blog.externalLink')}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -246,7 +345,7 @@ export const BlogPage: React.FC = () => {
                 <div className="p-6 flex-grow flex flex-col">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono uppercase tracking-wider">
-                      {categories.find(c => c.value === post.category)?.label.replace(/[📊🎭🪶🧭☯️💻📝]\s/, '') || post.category}
+                      {categories.find(c => c.value === post.category)?.label.replace(/[📊🎭🪶🧭🔺☯️💻📝]\s/, '') || post.category}
                     </span>
                     <span className="text-[10px] text-gray-500 flex items-center gap-1 font-mono">
                       <Eye className="w-3 h-3" />
@@ -270,10 +369,32 @@ export const BlogPage: React.FC = () => {
                       {formatDate(post.published_at)}
                     </div>
                     <div className="text-[10px] font-bold text-eva-secondary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
-                      {t('blog.readMore')} →
+                      {isExternal ? t('blog.readOriginal') : t('blog.readMore')} →
                     </div>
                   </div>
                 </div>
+              </>
+            );
+            
+            // External articles: <a> tag with external link
+            // Internal articles: <Link> component with router navigation
+            return isExternal && post.external_url ? (
+              <a
+                key={post.post_id}
+                href={post.external_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`group bg-eva-surface border ${styles.borderColor} rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300 flex flex-col`}
+              >
+                {cardContent}
+              </a>
+            ) : (
+              <Link
+                key={post.post_id}
+                to={getPostLink(post)}
+                className={`group bg-eva-surface border ${styles.borderColor} rounded-xl overflow-hidden hover:border-eva-secondary/50 transition-all duration-300 flex flex-col`}
+              >
+                {cardContent}
               </Link>
             );
           })}

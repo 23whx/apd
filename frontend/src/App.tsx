@@ -25,6 +25,7 @@ import { BlogPage } from './pages/BlogPage';
 import { BlogDetailPage } from './pages/BlogDetailPage';
 import { AdminBlogPage } from './pages/AdminBlogPage';
 import { AdminWriteBlogPage } from './pages/AdminWriteBlogPage';
+import { AdminReferBlogPage } from './pages/AdminReferBlogPage';
 import { detectAndSetLanguage } from './lib/geoLanguage';
 import './lib/i18n';
 
@@ -64,6 +65,7 @@ function AppContent() {
           <Route path="/admin/characters/:id/edit" element={<EditCharacterPage />} />
           <Route path="/admin/blog" element={<AdminBlogPage />} />
           <Route path="/admin/blog/write" element={<AdminWriteBlogPage />} />
+          <Route path="/admin/blog/refer" element={<AdminReferBlogPage />} />
           <Route path="/admin/blog/edit/:id" element={<AdminWriteBlogPage />} />
           <Route path="/blog" element={<BlogPage />} />
           <Route path="/blog/:slug" element={<BlogDetailPage />} />

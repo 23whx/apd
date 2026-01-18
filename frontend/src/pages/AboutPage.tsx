@@ -142,10 +142,10 @@ export const AboutPage: React.FC = () => {
               </div>
               <p className="mb-4">
                 {i18n.language === 'zh'
-                  ? '一个热爱ACGN文化和人格心理学的独立开发者。致力于通过技术手段为社区创造价值，让更多人能够深入了解和讨论他们喜爱的角色。'
+                  ? '一名普通的独立开发者，也是人格学与心理学的长期爱好者，尤其沉迷于日本动漫里那些鲜活而复杂的灵魂。平日喜欢把零散的阅读、观察与思考整理成更易理解的科普内容；也希望用代码把这些知识“做成工具”，把讨论变得更有依据、更有趣。若能凭借技术与分享，为业界与社区添上一点点微光，帮助更多人更系统地理解人格类型学，并将其自然地用在角色分析与自我探索中，就已经足够值得。'
                   : i18n.language === 'ja'
-                  ? 'ACGN文化と性格心理学を愛する独立開発者。技術を通じてコミュニティに価値を創造し、より多くの人が好きなキャラクターを深く理解し議論できるようにすることに取り組んでいます。'
-                  : 'An independent developer passionate about ACGN culture and personality psychology. Committed to creating value for the community through technology, enabling more people to deeply understand and discuss their favorite characters.'}
+                  ? 'ごく普通の個人開発者で、性格心理学やタイプ論が好きです。日本アニメに登場する“生きた心”の描写に惹かれ、日々の読書や観察、考察を、できるだけ分かりやすい形にまとめて発信しています。技術の力で知識を「使える形」に落とし込み、議論をもっと根拠あるものにし、そしてもっと楽しくしたい——そんな思いでこのプロジェクトを続けています。小さな貢献でも、誰かがタイプ論をより体系的に理解し、キャラクター分析や自己理解に自然に活かせるきっかけになれば嬉しいです。'
+                  : 'An independent developer and long-time enthusiast of personality typology and psychology, with a special love for Japanese anime and its richly written characters. I enjoy turning scattered notes, reading, and observations into approachable, educational content—and building small tools that make those ideas more practical. Through technology and knowledge sharing, I hope to contribute a modest spark to the community and help more people understand personality frameworks in a systematic way, applying them naturally to character analysis and self-reflection.'}
               </p>
               <div className="space-y-2">
                 <p className="flex items-center gap-2">
@@ -162,13 +162,44 @@ export const AboutPage: React.FC = () => {
                     @Rollkey4
                   </a>
                 </p>
-                <p className="flex items-center gap-2">
-                  <ExternalLink className="w-4 h-4 text-eva-accent" />
-                  <strong>{i18n.language === 'zh' ? '工具导航站：' : i18n.language === 'ja' ? 'ツールナビゲーション：' : 'Tool Navigation:'}</strong>
-                  <a href="https://oumashu.top" target="_blank" rel="noopener noreferrer" className="text-eva-secondary hover:underline">
-                    oumashu.top
-                  </a>
-                </p>
+              </div>
+              
+              <div className="mt-6 pt-4 border-t border-white/20">
+                <h4 className="text-sm font-bold text-eva-accent mb-3">
+                  {i18n.language === 'zh' ? '🌐 其他项目' : i18n.language === 'ja' ? '🌐 その他のプロジェクト' : '🌐 Other Projects'}
+                </h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-start gap-2">
+                    <ExternalLink className="w-4 h-4 text-eva-accent mt-0.5 flex-shrink-0" />
+                    <div>
+                      <a href="https://oumashu.top" target="_blank" rel="noopener noreferrer" className="text-eva-secondary hover:underline font-medium">
+                        OumaShu ({i18n.language === 'zh' ? '小工具聚合导航站' : i18n.language === 'ja' ? 'ツール集約ナビゲーション' : 'Tools Directory'})
+                      </a>
+                      <p className="text-gray-400 text-xs mt-1">
+                        {i18n.language === 'zh' 
+                          ? '精心策划的免费在线工具目录，涵盖文本、图片、视频、娱乐等多个领域。'
+                          : i18n.language === 'ja' 
+                          ? 'テキスト、画像、動画、エンターテインメントなど、さまざまな分野をカバーする無料オンラインツールディレクトリ。'
+                          : 'Curated directory of free online tools covering text, images, videos, entertainment, and more.'}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <ExternalLink className="w-4 h-4 text-eva-accent mt-0.5 flex-shrink-0" />
+                    <div>
+                      <a href="https://efortunetell.blog" target="_blank" rel="noopener noreferrer" className="text-eva-secondary hover:underline font-medium">
+                        eFortuneTell ({i18n.language === 'zh' ? '命理学博客' : i18n.language === 'ja' ? '占い学ブログ' : 'Metaphysics Blog'})
+                      </a>
+                      <p className="text-gray-400 text-xs mt-1">
+                        {i18n.language === 'zh' 
+                          ? '专业的中国传统命理学在线平台，提供八字、奇门遁甲、大六壬等传统占卜服务和知识分享。'
+                          : i18n.language === 'ja' 
+                          ? '伝統的な中国占術のオンラインプラットフォーム。四柱推命、奇門遁甲、大六壬などの伝統占いサービスと知識共有を提供。'
+                          : 'Professional Chinese metaphysics platform offering traditional divination services including BaZi, Qimen Dunjia, and Da Liu Ren, with knowledge sharing.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </section>

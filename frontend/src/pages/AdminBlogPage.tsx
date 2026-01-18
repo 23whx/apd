@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Plus, Edit, Trash2, AlertCircle, Search, Eye, EyeOff } from 'lucide-react';
+import { Plus, Edit, Trash2, AlertCircle, Search, Eye, EyeOff, Link as LinkIcon } from 'lucide-react';
 
 interface BlogPost {
   id: string;
@@ -107,6 +107,17 @@ export const AdminBlogPage: React.FC = () => {
     }
 
     try {
+      // Step 1: Delete translations first (though CASCADE should handle this)
+      const { error: transError } = await supabase
+        .from('blog_post_translations')
+        .delete()
+        .eq('post_id', postId);
+
+      if (transError) {
+        console.warn('删除翻译记录时出错（可能不存在）:', transError.message);
+      }
+
+      // Step 2: Delete the main post
       const { error } = await supabase
         .from('blog_posts')
         .delete()
@@ -117,6 +128,7 @@ export const AdminBlogPage: React.FC = () => {
       alert('删除成功！');
       fetchPosts();
     } catch (error: any) {
+      console.error('删除失败:', error);
       alert('删除失败：' + error.message);
     }
   };
@@ -177,13 +189,22 @@ export const AdminBlogPage: React.FC = () => {
           <h1 className="text-4xl font-bold mb-2">管理博客文章</h1>
           <p className="text-gray-400">编辑、发布或删除博客文章</p>
         </div>
-        <Link
-          to="/admin/blog/write"
-          className="bg-eva-secondary text-eva-bg px-6 py-3 rounded-lg font-bold hover:bg-eva-secondary/90 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-5 h-5" />
-          写新文章
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            to="/admin/blog/refer"
+            className="bg-white/5 hover:bg-white/10 text-white border border-white/20 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2"
+          >
+            <LinkIcon className="w-5 h-5" />
+            引用文章
+          </Link>
+          <Link
+            to="/admin/blog/write"
+            className="bg-eva-secondary text-eva-bg px-6 py-3 rounded-lg font-bold hover:bg-eva-secondary/90 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            写新文章
+          </Link>
+        </div>
       </div>
 
       {/* 搜索框 */}
