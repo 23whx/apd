@@ -72,6 +72,8 @@ export const AdminWriteBlogPage: React.FC = () => {
   const [category, setCategory] = useState<string>('tech');
   const [tags, setTags] = useState<string>('');
   const [published, setPublished] = useState(false);
+  const [articleType, setArticleType] = useState<'original' | 'external'>('original');
+  const [externalUrl, setExternalUrl] = useState('');
 
   const loadedPostRef = useRef<string | null>(null);
 
@@ -112,6 +114,8 @@ export const AdminWriteBlogPage: React.FC = () => {
       setCategory(data.category);
       setTags((data.tags || []).join(', '));
       setPublished(data.published);
+      setArticleType(data.article_type || 'original');
+      setExternalUrl(data.external_url || '');
 
       // Load translation for current language (fallback to zh)
       await loadTranslationForLang(data.id, lang);
@@ -708,14 +712,30 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
   };
 
   const handleSave = async (publishNow: boolean) => {
-    if (!title.trim() || !content.trim()) {
-      setError('标题和内容不能为空');
-      return;
-    }
-
-    if (!slug.trim()) {
-      setError('URL标识符不能为空');
-      return;
+    // Validation for external articles
+    if (articleType === 'external') {
+      if (!title.trim()) {
+        setError('标题不能为空');
+        return;
+      }
+      if (!externalUrl.trim()) {
+        setError('外部链接不能为空');
+        return;
+      }
+      if (!slug.trim()) {
+        setError('URL标识符不能为空');
+        return;
+      }
+    } else {
+      // Validation for original articles
+      if (!title.trim() || !content.trim()) {
+        setError('标题和内容不能为空');
+        return;
+      }
+      if (!slug.trim()) {
+        setError('URL标识符不能为空');
+        return;
+      }
     }
 
     setSaving(true);
@@ -748,6 +768,8 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
         published_at: publishNow ? new Date().toISOString() : null,
         author_id: user!.id,
         default_lang: defaultLang,
+        article_type: articleType,
+        external_url: articleType === 'external' ? externalUrl.trim() : null,
       };
 
       let postId = id;
@@ -851,9 +873,13 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
       </button>
 
       <h1 className="text-4xl font-bold mb-2">
-        {isEditMode ? '编辑文章' : '写新文章'}
+        {isEditMode ? (articleType === 'external' ? '编辑引用文章' : '编辑文章') : '写新文章'}
       </h1>
-      <p className="text-gray-400 mb-8">使用 Markdown 格式撰写你的博客文章</p>
+      <p className="text-gray-400 mb-8">
+        {articleType === 'external' 
+          ? '编辑引用文章的元数据（标题、分类、标签、外链等）' 
+          : '使用 Markdown 格式撰写你的博客文章'}
+      </p>
 
       {error && (
         <div className="mb-6 bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded flex items-start gap-3">
@@ -894,6 +920,48 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
             当前正在编辑：<span className="text-eva-secondary font-medium">{lang.toUpperCase()}</span> 版本标题/正文/摘要（slug、分类、封面、标签是全局共享的）
           </p>
         </div>
+
+        {/* 文章类型标识（仅编辑模式显示） */}
+        {isEditMode && (
+          <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
+            <label className="block text-sm font-medium mb-2 text-gray-300">
+              文章类型
+            </label>
+            <div className="flex items-center gap-2">
+              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                articleType === 'original' 
+                  ? 'bg-eva-secondary/20 text-eva-secondary border border-eva-secondary/30' 
+                  : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+              }`}>
+                {articleType === 'original' ? '原创文章' : '引用外链'}
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              {articleType === 'original' 
+                ? '完整的原创文章，需要编写内容' 
+                : '引用的外部文章，只需编辑元数据和外链地址'}
+            </p>
+          </div>
+        )}
+
+        {/* 外链URL（仅引用文章显示） */}
+        {articleType === 'external' && (
+          <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
+            <label className="block text-sm font-medium mb-2 text-gray-300">
+              外链地址 <span className="text-red-400">*</span>
+            </label>
+            <input
+              type="url"
+              value={externalUrl}
+              onChange={(e) => setExternalUrl(e.target.value)}
+              placeholder="https://example.com/article"
+              className="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-eva-secondary"
+            />
+            <p className="mt-2 text-xs text-gray-500">
+              原文链接（知乎、B站、Medium等平台的文章URL）
+            </p>
+          </div>
+        )}
 
         {/* URL标识符 */}
         <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
@@ -987,12 +1055,13 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
           />
         </div>
 
-        {/* Markdown 富文本编辑器 */}
-        <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
-          <label className="block text-sm font-medium mb-4 text-gray-300">
-            文章内容 <span className="text-red-400">*</span>
-            <span className="text-gray-500 text-xs ml-2">（支持 Markdown 格式，左侧编辑，右侧实时预览）</span>
-          </label>
+        {/* Markdown 富文本编辑器（仅原创文章） */}
+        {articleType === 'original' && (
+          <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
+            <label className="block text-sm font-medium mb-4 text-gray-300">
+              文章内容 <span className="text-red-400">*</span>
+              <span className="text-gray-500 text-xs ml-2">（支持 Markdown 格式，左侧编辑，右侧实时预览）</span>
+            </label>
           
           {uploading && (
             <div className="mb-4 bg-eva-secondary/20 border border-eva-secondary/50 text-eva-secondary px-4 py-3 rounded flex items-center gap-3">
@@ -1157,7 +1226,8 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
             <span className="ml-2">• 直接拖拽图片/视频到编辑器</span>
             <span className="ml-2">• 粘贴截图自动上传</span>
           </p>
-        </div>
+          </div>
+        )}
 
         {/* 操作按钮 */}
         <div className="flex gap-4">
@@ -1200,7 +1270,7 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
       </div>
 
       {/* 图片库弹窗 */}
-      {showMediaLibrary && (
+      {articleType === 'original' && showMediaLibrary && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-eva-surface border border-white/20 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* 标题栏 */}
@@ -1277,7 +1347,7 @@ ${article.cover_image ? `<div style="width: 120px; height: 80px; flex-shrink: 0;
       )}
 
       {/* 文章选择器弹窗 */}
-      {showArticleSelector && (
+      {articleType === 'original' && showArticleSelector && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-eva-surface border border-white/20 rounded-2xl max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* 标题栏 */}
