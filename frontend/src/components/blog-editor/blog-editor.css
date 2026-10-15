@@ -1,0 +1,60 @@
+/* Rich-text blog editor (loaded only with the admin write page chunk) */
+
+.blog-editor .tiptap {
+  outline: none;
+  min-height: 60vh;
+  padding-bottom: 30vh; /* room to keep writing near the middle of the screen */
+}
+
+.blog-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #6b7280;
+  pointer-events: none;
+}
+
+.blog-editor .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1rem auto;
+  display: block;
+}
+.blog-editor .tiptap img.ProseMirror-selectednode {
+  outline: 2px solid #a8ff60;
+  outline-offset: 2px;
+}
+.blog-editor .tiptap img[data-upload-id] {
+  opacity: 0.45;
+  filter: grayscale(0.4);
+}
+
+.blog-editor .tiptap table {
+  border-collapse: collapse;
+  width: 100%;
+  table-layout: fixed;
+  margin: 1rem 0;
+}
+.blog-editor .tiptap th,
+.blog-editor .tiptap td {
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.4rem 0.6rem;
+  vertical-align: top;
+}
+.blog-editor .tiptap th {
+  background: rgba(255, 255, 255, 0.05);
+}
+.blog-editor .tiptap .selectedCell {
+  background: rgba(168, 255, 96, 0.12);
+}
+
+.blog-editor .tiptap a {
+  color: #a8ff60;
+  text-decoration: underline;
+  cursor: text;
+}
+
+.blog-editor .tiptap .raw-html-block video {
+  max-width: 100%;
+}
