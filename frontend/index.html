@@ -14,8 +14,8 @@
      crossorigin="anonymous"></script>
     
     <!-- SEO Meta Tags (Primary: English) -->
-    <title>APD - ACGN Personality Database | Anime, Manga, Game & Novel Character Personalities</title>
-    <meta name="description" content="Explore MBTI, Enneagram, Instinctual Variants, and Yi Hexagrams of your favorite ACGN (Anime, Manga, Game, Novel) characters. Vote, analyze, and discuss personality types in the largest ACGN personality database." />
+    <title>APD: Anime &amp; Game Character MBTI Personality Database</title>
+    <meta name="description" content="Find the MBTI, Enneagram, instinctual variant, tritype and Yi Jing hexagram of anime, manga, game and novel characters, voted by fans. Browse by type, vote and discuss." />
     <meta name="keywords" content="ACGN personality database, anime characters MBTI, manga character enneagram, game character personality, novel character analysis, personality typing, MBTI database, enneagram database, anime psychology, character analysis" />
     <meta name="author" content="Rollkey (小学生滚键式)" />
     
@@ -44,17 +44,15 @@
     <meta name="twitter:image" content="https://acgn-personality-database.top/og-image.png" />
     <meta name="twitter:image:alt" content="APD - ACGN Personality Database: community votes on MBTI, Enneagram, instincts, tritype and Yi Jing hexagrams for anime, manga, game and novel characters" />
     
-    <!-- Multilingual Support -->
-    <link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/" />
-    <link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/" />
-    <link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/" />
-    <link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/" />
+    <!-- hreflang: only the blog has per-language URLs; its alternates are listed in sitemap.xml.
+         Other pages serve every language from one URL, so they declare no alternates. -->
     
     <!-- Additional SEO -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
     <!-- No static canonical: every route is served by this same file, so a hardcoded "/" would mark all pages
-         as duplicates of the home page. Each page sets its own canonical at runtime (src/lib/schema.ts → useCanonical). -->
+         as duplicates of the home page. Each page sets its own canonical at runtime (src/lib/seo.ts → useSeo)
+         and in the build-time prerendered HTML (scripts/prerender.mjs). -->
 
     <!-- Site-wide structured data. Page-level graphs (WebPage, BreadcrumbList, work/character/article)
          are injected at runtime and reference these nodes by @id. -->

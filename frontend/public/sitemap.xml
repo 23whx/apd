@@ -4,90 +4,163 @@
 
   <url>
     <loc>https://acgn-personality-database.top/</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/" />
-    <lastmod>2026-01-18</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
 
   <url>
     <loc>https://acgn-personality-database.top/works</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/works" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/works" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/works" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/works" />
-    <lastmod>2026-01-18</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
     <loc>https://acgn-personality-database.top/characters</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/characters" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/characters" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/characters" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/characters" />
-    <lastmod>2026-01-18</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
 
   <url>
-    <loc>https://acgn-personality-database.top/submit</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/submit" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/submit" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/submit" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/submit" />
-    <lastmod>2026-01-18</lastmod>
+    <loc>https://acgn-personality-database.top/mbti</loc>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.9</priority>
   </url>
 
   <url>
     <loc>https://acgn-personality-database.top/about</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/about" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/about" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/about" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/about" />
-    <lastmod>2026-01-18</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.4</priority>
   </url>
 
   <url>
     <loc>https://acgn-personality-database.top/privacy</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/privacy" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/privacy" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/privacy" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/privacy" />
-    <lastmod>2026-01-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
   </url>
 
   <url>
     <loc>https://acgn-personality-database.top/terms</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/terms" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/terms" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/terms" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/terms" />
-    <lastmod>2026-01-18</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
   </url>
 
   <url>
-    <loc>https://acgn-personality-database.top/blog</loc>
-    <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/en/blog" />
-    <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/zh/blog" />
-    <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/ja/blog" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/blog" />
-    <lastmod>2026-01-18</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <loc>https://acgn-personality-database.top/mbti/intj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/intp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/entj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/entp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/infj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/infp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/enfj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/enfp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/istj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/isfj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/estj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/esfj</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/istp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/isfp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/estp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://acgn-personality-database.top/mbti/esfp</loc>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
   </url>
 
   <url>
@@ -95,10 +168,10 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/en/blog" />
     <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/zh/blog" />
     <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/ja/blog" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/blog" />
-    <lastmod>2026-01-18</lastmod>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/en/blog" />
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
   </url>
 
   <url>
@@ -106,10 +179,10 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/en/blog" />
     <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/zh/blog" />
     <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/ja/blog" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/blog" />
-    <lastmod>2026-01-18</lastmod>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/en/blog" />
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
   </url>
 
   <url>
@@ -117,10 +190,10 @@
     <xhtml:link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/en/blog" />
     <xhtml:link rel="alternate" hreflang="zh" href="https://acgn-personality-database.top/zh/blog" />
     <xhtml:link rel="alternate" hreflang="ja" href="https://acgn-personality-database.top/ja/blog" />
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/blog" />
-    <lastmod>2026-01-18</lastmod>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://acgn-personality-database.top/en/blog" />
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
   </url>
 
 </urlset>

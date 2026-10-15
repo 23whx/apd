@@ -5,7 +5,14 @@ import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { Search } from 'lucide-react';
 import { SkeletonWorkCard } from '../components/Skeleton';
-import { buildWorksListSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { buildWorksListSchema, useJsonLd } from '../lib/schema';
+import { toSeoLang, useSeo } from '../lib/seo';
+
+const WORKS_SEO = {
+  en: { title: 'Anime, Manga & Game Works – Character Personality Types', description: 'Browse anime, manga, games and novels and see the community-voted MBTI, Enneagram and Yi Jing types of their characters.' },
+  zh: { title: '动漫、漫画、游戏作品 · 角色人格类型', description: '浏览动漫、漫画、游戏与小说作品，查看网友投票得出的角色 MBTI、九型人格与易经卦象。' },
+  ja: { title: 'アニメ・漫画・ゲーム作品 · キャラクター性格タイプ', description: 'アニメ・漫画・ゲーム・小説の作品ごとに、キャラクターの MBTI・エニアグラム・易経タイプの投票結果を見られます。' },
+} as const;
 
 export const WorksPage: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -62,7 +69,8 @@ export const WorksPage: React.FC = () => {
 
   const schema = useMemo(() => (loading ? null : buildWorksListSchema(works, i18n.language)), [loading, works, i18n.language]);
   useJsonLd(schema);
-  useCanonical('/works');
+  const seoLang = toSeoLang(i18n.language);
+  useSeo({ ...WORKS_SEO[seoLang], path: '/works', lang: seoLang });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

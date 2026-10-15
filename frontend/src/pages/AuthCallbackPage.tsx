@@ -1,9 +1,12 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { useSeo } from '../lib/seo';
 import { Loader2 } from 'lucide-react';
 
 export const AuthCallbackPage = () => {
+  // Account / form pages carry no searchable content
+  useSeo({ noindex: true });
   const navigate = useNavigate();
 
   useEffect(() => {

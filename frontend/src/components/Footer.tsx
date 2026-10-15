@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { BrandMark } from './BrandMark';
+import { MBTI_TYPES } from '../lib/types';
+import { mbtiPath } from '../lib/mbti';
 
 export const Footer: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -91,6 +93,20 @@ export const Footer: React.FC = () => {
           </div>
         </div>
         
+        {/* Site-wide links to the 16 MBTI hubs: a crawl path to every type page */}
+        <nav aria-label="MBTI" className="pt-6 pb-6 border-t border-white/5">
+          <Link to="/mbti" className="text-white font-bold text-sm mr-3 hover:text-eva-secondary transition-colors">
+            MBTI
+          </Link>
+          <span className="inline-flex flex-wrap gap-x-3 gap-y-1 text-xs font-mono">
+            {MBTI_TYPES.map((type) => (
+              <Link key={type} to={mbtiPath(type)} className="text-gray-500 hover:text-eva-secondary transition-colors">
+                {type}
+              </Link>
+            ))}
+          </span>
+        </nav>
+
         <div className="pt-8 border-t border-white/5 text-center text-xs text-gray-700">
           <p>{t('footer.copyright')}</p>
           <p className="mt-2">

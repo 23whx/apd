@@ -7,7 +7,8 @@ import type { Work, Character } from '../lib/types';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 import { WorkDetailSkeleton } from '../components/WorkDetailSkeleton';
 import { topPersonalitiesByCharacter } from '../lib/personality';
-import { buildWorkPageSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { buildWorkPageSchema, useJsonLd } from '../lib/schema';
+import { displayName, toSeoLang, useSeo, workSeo } from '../lib/seo';
 
 interface CharacterWithPersonality extends Character {
   top_mbti?: string;
@@ -93,7 +94,17 @@ export const WorkDetailPage: React.FC = () => {
     [work, characters, loading, i18n.language]
   );
   useJsonLd(schema);
-  useCanonical(id ? `/works/${id}` : null);
+
+  const seoLang = toSeoLang(i18n.language);
+  const seo = !loading && work
+    ? workSeo({
+        name: displayName({ cn: work.name_cn, en: work.name_en, jp: work.name_jp }, seoLang),
+        characterCount: characters.length,
+        lang: seoLang,
+        summary: work.summary_md,
+      })
+    : null;
+  useSeo({ title: seo?.title, description: seo?.description, path: id ? `/works/${id}` : null, image: work?.poster_url, lang: seoLang });
 
   if (loading) {
     return (

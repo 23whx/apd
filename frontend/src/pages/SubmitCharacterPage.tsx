@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useSeo } from '../lib/seo';
 import { Save, AlertCircle, ArrowLeft, Image as ImageIcon } from 'lucide-react';
 
 export const SubmitCharacterPage: React.FC = () => {
   const { workId } = useParams<{ workId: string }>();
   const { user, loading: authLoading } = useAuth();
+  // Account / form pages carry no searchable content
+  useSeo({ noindex: true });
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(false);

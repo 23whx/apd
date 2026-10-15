@@ -1,7 +1,14 @@
 import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useBlogLanguage } from '../lib/useBlogLanguage';
-import { buildBlogListSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { buildBlogListSchema, useJsonLd } from '../lib/schema';
+import { useSeo } from '../lib/seo';
+
+const BLOG_SEO = {
+  en: { title: 'Blog: MBTI, Enneagram & Character Personality Analysis', description: 'Articles on MBTI, the Enneagram, tritypes, Yi Jing and personality analysis of anime, manga and game characters.' },
+  zh: { title: '博客：MBTI、九型人格与角色人格分析', description: '关于 MBTI、九型人格、三元组、易学，以及动漫游戏角色人格分析的文章。' },
+  ja: { title: 'ブログ：MBTI・エニアグラム・キャラクター性格分析', description: 'MBTI、エニアグラム、トライタイプ、易学、アニメ・ゲームキャラクターの性格分析に関する記事。' },
+} as const;
 import { supabase } from '../lib/supabase';
 import { Search, BookOpen, Calendar, Eye, ArrowDownWideNarrow, ArrowUpNarrowWide, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -186,7 +193,12 @@ export const BlogPage: React.FC = () => {
     [loading, fetchError, posts, currentLang]
   );
   useJsonLd(schema);
-  useCanonical(`/${currentLang}/blog`);
+  useSeo({
+    title: BLOG_SEO[currentLang].title,
+    description: BLOG_SEO[currentLang].description,
+    path: `/${currentLang}/blog`,
+    lang: currentLang,
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

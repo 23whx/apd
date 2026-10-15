@@ -156,6 +156,12 @@ export const Navbar: React.FC = () => {
                   {t('nav.characters')}
                 </Link>
                 <Link
+                  to="/mbti"
+                  className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
+                >
+                  MBTI
+                </Link>
+                <Link
                   to={`/${normalizeLang(i18n.language)}/blog`}
                   className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
                 >

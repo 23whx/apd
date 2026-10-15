@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useSeo } from '../lib/seo';
 import { Plus, AlertCircle, CheckCircle, Image as ImageIcon, Trash2 } from 'lucide-react';
 
 interface Character {
@@ -14,6 +15,8 @@ interface Character {
 
 export const SubmitWorkPage: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
+  // Account / form pages carry no searchable content
+  useSeo({ noindex: true });
   const navigate = useNavigate();
   const location = useLocation();
   

@@ -5,7 +5,14 @@ import { supabase } from '../lib/supabase';
 import { Search, Users } from 'lucide-react';
 import { SkeletonCharacterCard, SkeletonStats } from '../components/Skeleton';
 import { topPersonalitiesByCharacter } from '../lib/personality';
-import { buildCharactersListSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { buildCharactersListSchema, useJsonLd } from '../lib/schema';
+import { toSeoLang, useSeo } from '../lib/seo';
+
+const CHARACTERS_SEO = {
+  en: { title: 'Anime & Game Characters MBTI Database', description: 'Community-voted MBTI, Enneagram, instinctual variant, tritype and Yi Jing hexagram types for anime, manga, game and novel characters.' },
+  zh: { title: '动漫游戏角色 MBTI 人格数据库', description: '网友投票得出的动漫、漫画、游戏与小说角色 MBTI、九型人格、副型、三元组与易经卦象。' },
+  ja: { title: 'アニメ・ゲームキャラクター MBTI データベース', description: 'アニメ・漫画・ゲーム・小説キャラクターの MBTI・エニアグラム・サブタイプ・トライタイプ・易経タイプの投票データベース。' },
+} as const;
 
 interface Character {
   id: string;
@@ -114,7 +121,8 @@ export const CharactersPage: React.FC = () => {
     [loading, error, characters, i18n.language]
   );
   useJsonLd(schema);
-  useCanonical('/characters');
+  const seoLang = toSeoLang(i18n.language);
+  useSeo({ ...CHARACTERS_SEO[seoLang], path: '/characters', lang: seoLang });
 
   if (loading) {
     return (

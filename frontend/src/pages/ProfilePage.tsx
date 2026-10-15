@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { useSeo } from '../lib/seo';
 import { PRESET_AVATARS, getAvatarUrl } from '../lib/types';
 import { User as UserIcon, Mail, Calendar, Save, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -10,6 +11,8 @@ import { SkeletonStats } from '../components/Skeleton';
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
   const { user, loading: authLoading } = useAuth();
+  // Account / form pages carry no searchable content
+  useSeo({ noindex: true });
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');

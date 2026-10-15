@@ -30,6 +30,8 @@ const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage').then((m) => (
 const AdminBlogPage = lazy(() => import('./pages/AdminBlogPage').then((m) => ({ default: m.AdminBlogPage })));
 const AdminWriteBlogPage = lazy(() => import('./pages/AdminWriteBlogPage').then((m) => ({ default: m.AdminWriteBlogPage })));
 const AdminReferBlogPage = lazy(() => import('./pages/AdminReferBlogPage').then((m) => ({ default: m.AdminReferBlogPage })));
+const MbtiIndexPage = lazy(() => import('./pages/MbtiIndexPage').then((m) => ({ default: m.MbtiIndexPage })));
+const MbtiTypePage = lazy(() => import('./pages/MbtiTypePage').then((m) => ({ default: m.MbtiTypePage })));
 
 const RouteFallback = () => (
   <div className="flex items-center justify-center py-32">
@@ -59,6 +61,12 @@ function AppContent() {
     initLanguage();
   }, []); // Run only once on mount
 
+  // Keep <html lang> in sync with the UI language (pages with their own content language override it via useSeo)
+  useEffect(() => {
+    const lang = i18n.language || 'en';
+    document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : lang.startsWith('ja') ? 'ja' : 'en';
+  }, [i18n.language]);
+
   return (
     <div className="min-h-screen bg-eva-bg text-eva-text font-sans selection:bg-eva-secondary selection:text-eva-bg flex flex-col">
       <Navbar />
@@ -71,6 +79,8 @@ function AppContent() {
           <Route path="/works/:workId/submit-character" element={<SubmitCharacterPage />} />
           <Route path="/characters" element={<CharactersPage />} />
           <Route path="/characters/:id" element={<CharacterDetailPage />} />
+          <Route path="/mbti" element={<MbtiIndexPage />} />
+          <Route path="/mbti/:type" element={<MbtiTypePage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/submit" element={<SubmitWorkPage />} />
           <Route path="/admin" element={<AdminPage />} />

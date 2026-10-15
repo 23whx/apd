@@ -9,7 +9,15 @@ import { VotePanel } from '../components/VotePanel';
 import { VoteChart } from '../components/VoteChart';
 import { CommentSection } from '../components/CommentSection';
 import { countVotes, topOf } from '../lib/personality';
-import { buildCharacterPageSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { isMbtiType, mbtiPath } from '../lib/mbti';
+
+const MORE_OF_TYPE = {
+  en: (type: string) => `More ${type} characters`,
+  zh: (type: string) => `更多 ${type} 角色`,
+  ja: (type: string) => `ほかの ${type} キャラクター`,
+};
+import { buildCharacterPageSchema, useJsonLd } from '../lib/schema';
+import { characterSeo, displayName, toSeoLang, useSeo } from '../lib/seo';
 
 interface CharacterWithWork extends Character {
   works?: {
@@ -126,19 +134,43 @@ export const CharacterDetailPage: React.FC = () => {
     return work.name_cn || work.name_jp || 'Unknown Work';
   };
 
-  const schema = useMemo(() => {
-    if (loading || !character) return null;
-    const topTypes = {
+  const topTypes = useMemo(
+    () => ({
       mbti: topOf(stats.mbti),
       enneagram: topOf(stats.enneagram),
       subtype: topOf(stats.subtype),
       tritype: topOf(stats.tritype),
       yi_hexagram: topOf(stats.yi_hexagram),
-    };
-    return buildCharacterPageSchema(character, character.works, topTypes, voteCount, i18n.language);
-  }, [loading, character, stats, voteCount, i18n.language]);
+    }),
+    [stats]
+  );
+  const schema = useMemo(
+    () => (loading || !character ? null : buildCharacterPageSchema(character, character.works, topTypes, voteCount, i18n.language)),
+    [loading, character, topTypes, voteCount, i18n.language]
+  );
   useJsonLd(schema);
-  useCanonical(id ? `/characters/${id}` : null);
+
+  const seoLang = toSeoLang(i18n.language);
+  const seo =
+    !loading && character
+      ? characterSeo({
+          name: displayName({ cn: character.name_cn, en: character.name_en, jp: character.name_jp }, seoLang),
+          workName: character.works
+            ? displayName({ cn: character.works.name_cn, en: character.works.name_en, jp: character.works.name_jp }, seoLang)
+            : undefined,
+          top: topTypes,
+          voteCount,
+          lang: seoLang,
+        })
+      : null;
+  useSeo({
+    title: seo?.title,
+    description: seo?.description,
+    path: id ? `/characters/${id}` : null,
+    image: character?.avatar_url,
+    lang: seoLang,
+    ogType: 'profile',
+  });
 
   if (loading) {
     return (
@@ -230,6 +262,12 @@ export const CharacterDetailPage: React.FC = () => {
           <VoteChart title="Tritype" data={stats.tritype} />
           <VoteChart title={t('characterDetail.yiHexagram')} data={stats.yi_hexagram} />
         </div>
+
+        {topTypes.mbti && isMbtiType(topTypes.mbti) && (
+          <Link to={mbtiPath(topTypes.mbti)} className="inline-block mt-6 text-sm text-eva-secondary hover:underline">
+            {MORE_OF_TYPE[seoLang](topTypes.mbti)} →
+          </Link>
+        )}
       </div>
 
       {/* Vote Panel */}

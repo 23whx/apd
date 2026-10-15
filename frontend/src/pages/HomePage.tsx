@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { SkeletonWorkCard } from '../components/Skeleton';
-import { useCanonical } from '../lib/schema';
+import { useSeo } from '../lib/seo';
 
 interface TrendingWork extends Work {
   character_count: number;
@@ -21,7 +21,7 @@ export const HomePage: React.FC = () => {
   const [trendingWorks, setTrendingWorks] = useState<TrendingWork[]>([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
   // WebSite / Organization structured data lives statically in index.html
-  useCanonical('/');
+  useSeo({ path: '/' });
 
   useEffect(() => {
     fetchTrendingWorks();

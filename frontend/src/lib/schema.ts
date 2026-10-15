@@ -523,25 +523,63 @@ export function useJsonLd(data: JsonLdGraph | null) {
   }, [json]);
 }
 
-/**
- * Set <link rel="canonical"> for the current page. Pass a site path ("/works/123") or absolute URL;
- * query strings and hashes should be left out. Pass null while the page doesn't know its URL yet.
- */
-export function useCanonical(pathOrUrl: string | null) {
-  const href = pathOrUrl ? absoluteUrl(pathOrUrl) : null;
+// ---------------------------------------------------------------------------
+// MBTI type hubs
+// ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!href || typeof document === 'undefined') return;
-    let link = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'canonical';
-      document.head.appendChild(link);
+const MBTI_CRUMB: Record<Lang, string> = { en: 'MBTI types', zh: 'MBTI 类型', ja: 'MBTI タイプ' };
+
+export function buildMbtiHubSchema(
+  type: string,
+  characters: { character_id: string; name_cn?: string | null; name_en?: string | null; name_jp?: string | null }[],
+  title: string,
+  description: string,
+  rawLang: string
+): JsonLdGraph {
+  const lang = toLang(rawLang);
+  const path = `/mbti/${type.toLowerCase()}`;
+  const url = `${SITE_URL}${path}`;
+  return graph(
+    webPageNode({ type: 'CollectionPage', url, name: title, description, lang, mainEntityId: `${url}#itemlist` }),
+    breadcrumbNode(url, [
+      { name: HOME_CRUMB[lang], path: '/' },
+      { name: MBTI_CRUMB[lang], path: '/mbti' },
+      { name: type, path },
+    ]),
+    {
+      '@type': 'ItemList',
+      '@id': `${url}#itemlist`,
+      name: title,
+      numberOfItems: characters.length,
+      itemListElement: characters.slice(0, 100).map((c, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: characterUrl(c.character_id),
+        name: localizedNames({ cn: c.name_cn, en: c.name_en, jp: c.name_jp }, lang).name,
+      })),
     }
-    link.href = href;
-    const current = link;
-    return () => {
-      current.remove();
-    };
-  }, [href]);
+  );
+}
+
+export function buildMbtiIndexSchema(types: string[], title: string, description: string, rawLang: string): JsonLdGraph {
+  const lang = toLang(rawLang);
+  const url = `${SITE_URL}/mbti`;
+  return graph(
+    webPageNode({ type: 'CollectionPage', url, name: title, description, lang, mainEntityId: `${url}#itemlist` }),
+    breadcrumbNode(url, [
+      { name: HOME_CRUMB[lang], path: '/' },
+      { name: MBTI_CRUMB[lang], path: '/mbti' },
+    ]),
+    {
+      '@type': 'ItemList',
+      '@id': `${url}#itemlist`,
+      numberOfItems: types.length,
+      itemListElement: types.map((t, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        url: `${url}/${t.toLowerCase()}`,
+        name: t,
+      })),
+    }
+  );
 }

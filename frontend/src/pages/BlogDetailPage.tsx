@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useBlogLanguage } from '../lib/useBlogLanguage';
-import { buildBlogPostSchema, useCanonical, useJsonLd } from '../lib/schema';
+import { buildBlogPostSchema, useJsonLd } from '../lib/schema';
+import { toSeoLang, useSeo } from '../lib/seo';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Calendar, Eye, Tag, User, Share2, Link2, Check, X as XIcon } from 'lucide-react';
 import { CommentSection } from '../components/CommentSection';
@@ -162,7 +163,14 @@ export const BlogDetailPage: React.FC = () => {
   const schema = useMemo(() => (post && !loading ? buildBlogPostSchema(post, currentLang) : null), [post, loading, currentLang]);
   useJsonLd(schema);
   // Canonical is the language-prefixed URL; unprefixed /blog/:slug redirects there
-  useCanonical(slug ? `/${currentLang}/blog/${slug}` : null);
+  useSeo({
+    title: !loading && post ? post.title : null,
+    description: post?.excerpt,
+    path: slug ? `/${currentLang}/blog/${slug}` : null,
+    image: post?.cover_image,
+    lang: toSeoLang(post?.lang ?? currentLang),
+    ogType: 'article',
+  });
 
   if (loading) {
     return (
