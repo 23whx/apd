@@ -5,7 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { SkeletonWorkCard } from '../components/Skeleton';
-import { websiteSchema, organizationSchema, injectSchema } from '../lib/schema';
+import { useCanonical } from '../lib/schema';
 
 interface TrendingWork extends Work {
   character_count: number;
@@ -20,18 +20,11 @@ export const HomePage: React.FC = () => {
   const [showNoResultModal, setShowNoResultModal] = useState(false);
   const [trendingWorks, setTrendingWorks] = useState<TrendingWork[]>([]);
   const [loadingTrending, setLoadingTrending] = useState(true);
+  // WebSite / Organization structured data lives statically in index.html
+  useCanonical('/');
 
   useEffect(() => {
     fetchTrendingWorks();
-    
-    // Inject Schema.org structured data for SEO
-    const cleanupWebsiteSchema = injectSchema(websiteSchema);
-    const cleanupOrgSchema = injectSchema(organizationSchema);
-    
-    return () => {
-      cleanupWebsiteSchema?.();
-      cleanupOrgSchema?.();
-    };
   }, []);
 
   const fetchTrendingWorks = async () => {
@@ -51,64 +44,41 @@ export const HomePage: React.FC = () => {
 
       const workIds = worksData.map(w => w.id);
 
-      // 获取每个作品的角色数量
-      const { data: charCounts } = await supabase
-        .from('characters')
-        .select('work_id')
-        .in('work_id', workIds);
-
-      // 获取每个作品的投票数（通过角色）
-      const { data: charIds } = await supabase
+      // 一次查询拿到角色及其所属作品（用于角色数和投票归属）
+      const { data: chars } = await supabase
         .from('characters')
         .select('id, work_id')
         .in('work_id', workIds);
 
-      if (charIds && charIds.length > 0) {
-        const characterIds = charIds.map(c => c.id);
-        const { data: voteCounts } = await supabase
+      const characterCountByWork = new Map<string, number>();
+      const workIdByCharacter = new Map<string, string>();
+      chars?.forEach(c => {
+        characterCountByWork.set(c.work_id, (characterCountByWork.get(c.work_id) || 0) + 1);
+        workIdByCharacter.set(c.id, c.work_id);
+      });
+
+      const voteCountByWork = new Map<string, number>();
+      if (chars && chars.length > 0) {
+        const { data: votes } = await supabase
           .from('personality_votes')
           .select('character_id')
-          .in('character_id', characterIds);
+          .in('character_id', chars.map(c => c.id));
 
-        // 统计每个作品的数据
-        const workStats = worksData.map(work => {
-          const workCharIds = charIds.filter(c => c.work_id === work.id).map(c => c.id);
-          const characterCount = charCounts?.filter(c => c.work_id === work.id).length || 0;
-          const voteCount = voteCounts?.filter(v => workCharIds.includes(v.character_id)).length || 0;
-
-          return {
-            ...work,
-            character_count: characterCount,
-            vote_count: voteCount,
-            created_at: work.created_at || new Date().toISOString()
-          };
+        votes?.forEach(v => {
+          const workId = workIdByCharacter.get(v.character_id);
+          if (workId) voteCountByWork.set(workId, (voteCountByWork.get(workId) || 0) + 1);
         });
-
-        // 按投票数排序，取前3个，去重
-        const sortedByVotes = [...workStats].sort((a, b) => b.vote_count - a.vote_count);
-        const topVoted = sortedByVotes.slice(0, 3);
-
-        // 去重：如果第一名和历史第一名相同，只保留一个
-        const uniqueWorks: TrendingWork[] = [];
-        const seenIds = new Set<string>();
-
-        topVoted.forEach(work => {
-          if (!seenIds.has(work.id)) {
-            uniqueWorks.push(work as TrendingWork);
-            seenIds.add(work.id);
-          }
-        });
-
-        setTrendingWorks(uniqueWorks.slice(0, 3));
-      } else {
-        // 没有角色数据时，显示前3个作品
-        setTrendingWorks(worksData.slice(0, 3).map(w => ({
-          ...w,
-          character_count: 0,
-          vote_count: 0,
-          created_at: w.created_at || new Date().toISOString()
-        })));
       }
+
+      // 按投票数排序取前3个（没有投票时保持原顺序）
+      const workStats: TrendingWork[] = worksData.map(work => ({
+        ...work,
+        character_count: characterCountByWork.get(work.id) || 0,
+        vote_count: voteCountByWork.get(work.id) || 0,
+        created_at: work.created_at || new Date().toISOString()
+      }));
+
+      setTrendingWorks([...workStats].sort((a, b) => b.vote_count - a.vote_count).slice(0, 3));
     } catch (error) {
       console.error('Error fetching trending works:', error);
     } finally {

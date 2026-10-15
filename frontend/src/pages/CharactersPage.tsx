@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
 import { Search, Users } from 'lucide-react';
 import { SkeletonCharacterCard, SkeletonStats } from '../components/Skeleton';
+import { topPersonalitiesByCharacter } from '../lib/personality';
+import { buildCharactersListSchema, useCanonical, useJsonLd } from '../lib/schema';
 
 interface Character {
   id: string;
@@ -56,39 +58,24 @@ export const CharactersPage: React.FC = () => {
 
       if (error) throw error;
 
-      const chars = data || [];
+      // works is a many-to-one relation; older client versions returned it as an array
+      const chars = (data || []).map(char => {
+        const works = Array.isArray(char.works) ? char.works[0] : char.works;
+        return { ...char, works } as Character;
+      });
 
-      // Fetch personality votes for all characters
+      // Fetch personality votes for all characters and compute the top type per character
       if (chars.length > 0) {
-        const characterIds = chars.map(c => c.id);
-        const { data: votesData } = await supabase
+        const { data: votesData, error: votesError } = await supabase
           .from('personality_votes')
           .select('character_id, mbti, enneagram, subtype, yi_hexagram')
-          .in('character_id', characterIds);
+          .in('character_id', chars.map(c => c.id));
 
-        // Calculate top personality for each character
-        const charsWithPersonality = chars.map(char => {
-          const charVotes = votesData?.filter(v => v.character_id === char.id) || [];
-          
-          // works is returned as an array by Supabase, get the first item
-          const works = Array.isArray(char.works) && char.works.length > 0 ? char.works[0] : char.works;
-          
-          return {
-            ...char,
-            works,
-            top_mbti: getTopVote(charVotes, 'mbti'),
-            top_enneagram: getTopVote(charVotes, 'enneagram'),
-            top_subtype: getTopVote(charVotes, 'subtype'),
-            top_yi: getTopVote(charVotes, 'yi_hexagram')
-          } as Character;
-        });
-
-        setCharacters(charsWithPersonality);
+        if (votesError) console.error('Error fetching votes:', votesError);
+        const topByChar = topPersonalitiesByCharacter(votesData);
+        setCharacters(chars.map(char => ({ ...char, ...topByChar.get(char.id) })));
       } else {
-        setCharacters(chars.map(char => {
-          const works = Array.isArray(char.works) && char.works.length > 0 ? char.works[0] : char.works;
-          return { ...char, works } as Character;
-        }));
+        setCharacters(chars);
       }
     } catch (err: any) {
       console.error('Error fetching characters:', err);
@@ -96,21 +83,6 @@ export const CharactersPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getTopVote = (votes: any[], field: string): string | undefined => {
-    const counts: Record<string, number> = {};
-    votes.forEach(vote => {
-      const value = vote[field];
-      if (value) {
-        counts[value] = (counts[value] || 0) + 1;
-      }
-    });
-    
-    const entries = Object.entries(counts);
-    if (entries.length === 0) return undefined;
-    
-    return entries.sort((a, b) => b[1] - a[1])[0][0];
   };
 
   const getCharacterName = (char: Character) => {
@@ -125,16 +97,24 @@ export const CharactersPage: React.FC = () => {
     return work.name_en || work.name_cn || 'Unknown Work';
   };
 
-  const filteredCharacters = characters.filter((char) => {
-    const query = searchTerm.toLowerCase();
-    return (
-      char.name_cn.toLowerCase().includes(query) ||
-      char.name_en?.toLowerCase().includes(query) ||
-      char.name_jp?.toLowerCase().includes(query) ||
-      char.works?.name_cn.toLowerCase().includes(query) ||
-      char.works?.name_en?.toLowerCase().includes(query)
+  const filteredCharacters = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    if (!query) return characters;
+    return characters.filter((char) =>
+      [char.name_cn, char.name_en, char.name_jp, char.works?.name_cn, char.works?.name_en].some(
+        (name) => name?.toLowerCase().includes(query)
+      )
     );
-  });
+  }, [characters, searchTerm]);
+
+  const workCount = useMemo(() => new Set(characters.map(c => c.work_id)).size, [characters]);
+
+  const schema = useMemo(
+    () => (loading || error ? null : buildCharactersListSchema(characters, i18n.language)),
+    [loading, error, characters, i18n.language]
+  );
+  useJsonLd(schema);
+  useCanonical('/characters');
 
   if (loading) {
     return (
@@ -212,7 +192,7 @@ export const CharactersPage: React.FC = () => {
           </div>
           <div>
             <div className="text-3xl font-bold text-eva-accent mb-1">
-              {new Set(characters.map(c => c.work_id)).size}
+              {workCount}
             </div>
             <div className="text-sm text-gray-400">Different Works</div>
           </div>

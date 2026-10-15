@@ -1,30 +1,31 @@
 # APD - ACGN Personality Database
 # Robots.txt for Search Engine Optimization
+#
+# Note: a crawler obeys only the most specific group that matches it, so every group repeats the
+# private-path rules instead of relying on the "*" group.
 
-# Allow all search engines
-User-agent: *
+# Google AdSense crawler: must be able to fetch every page to serve relevant ads
+User-agent: Mediapartners-Google
 Allow: /
 
-# Specific rules for major search engines
+# Major search engines
 User-agent: Googlebot
-Allow: /
-Crawl-delay: 0
-
 User-agent: Bingbot
 Allow: /
-Crawl-delay: 0
+Disallow: /admin
+Disallow: /auth/callback
 
 User-agent: Slurp
 Allow: /
+Disallow: /admin
+Disallow: /auth/callback
 Crawl-delay: 1
 
-# Disallow admin pages
+# Everyone else
+User-agent: *
+Allow: /
 Disallow: /admin
-Disallow: /admin/*
-
-# Disallow authentication callback
 Disallow: /auth/callback
 
 # Sitemap location
 Sitemap: https://acgn-personality-database.top/sitemap.xml
-

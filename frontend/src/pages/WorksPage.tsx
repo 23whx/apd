@@ -1,17 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import type { Work } from '../lib/types';
 import { Search } from 'lucide-react';
 import { SkeletonWorkCard } from '../components/Skeleton';
+import { buildWorksListSchema, useCanonical, useJsonLd } from '../lib/schema';
 
 export const WorksPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [works, setWorks] = useState<Work[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'anime' | 'manga' | 'game' | 'novel'>('all');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchParams] = useSearchParams();
+  // Pre-fill from /works?search=... (used by the home page search)
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') ?? '');
 
   useEffect(() => {
     fetchWorks();
@@ -43,23 +46,23 @@ export const WorksPage: React.FC = () => {
   };
 
   // Filter works by type and search query in frontend
-  const filteredWorks = works
-    .filter((work) => {
-      // Filter by type
-      if (filter !== 'all' && !work.type.includes(filter)) {
-        return false;
-      }
-      // Filter by search query
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        return (
-          work.name_cn.toLowerCase().includes(query) ||
-          work.name_en?.toLowerCase().includes(query) ||
-          work.name_jp?.toLowerCase().includes(query)
-        );
-      }
-      return true;
+  const filteredWorks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return works.filter((work) => {
+      // Older rows may still store a single type string instead of an array
+      const types = Array.isArray(work.type) ? work.type : [work.type];
+      if (filter !== 'all' && !types.includes(filter)) return false;
+      if (!query) return true;
+      const aliases = Array.isArray(work.alias) ? work.alias : [];
+      return [work.name_cn, work.name_en, work.name_jp, ...aliases].some(
+        (name) => typeof name === 'string' && name.toLowerCase().includes(query)
+      );
     });
+  }, [works, filter, searchQuery]);
+
+  const schema = useMemo(() => (loading ? null : buildWorksListSchema(works, i18n.language)), [loading, works, i18n.language]);
+  useJsonLd(schema);
+  useCanonical('/works');
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase';
 import type { Work, Character } from '../lib/types';
 import { ArrowLeft, ExternalLink, Plus } from 'lucide-react';
 import { WorkDetailSkeleton } from '../components/WorkDetailSkeleton';
+import { topPersonalitiesByCharacter } from '../lib/personality';
+import { buildWorkPageSchema, useCanonical, useJsonLd } from '../lib/schema';
 
 interface CharacterWithPersonality extends Character {
   top_mbti?: string;
@@ -23,85 +25,75 @@ export const WorkDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (id) {
-      fetchWorkDetails();
-    }
-  }, [id]);
+    if (!id) return;
+    // Ignore responses for a previous id when navigating between works quickly
+    let cancelled = false;
 
-  const fetchWorkDetails = async () => {
-    setLoading(true);
-    try {
-      // Fetch work and characters in parallel
-      const [workResult, charsResult] = await Promise.all([
-        supabase
-          .from('works')
-          .select('id, name_cn, name_en, name_jp, type, poster_url, summary_md, source_urls, created_at')
-          .eq('id', id)
-          .single(),
-        supabase
-          .from('characters')
-          .select('id, name_cn, name_en, name_jp, avatar_url, work_id, created_at')
-          .eq('work_id', id)
-      ]);
+    const fetchWorkDetails = async () => {
+      setLoading(true);
+      try {
+        // Fetch work and characters in parallel
+        const [workResult, charsResult] = await Promise.all([
+          supabase
+            .from('works')
+            .select('id, name_cn, name_en, name_jp, type, poster_url, summary_md, source_urls, created_at')
+            .eq('id', id)
+            .maybeSingle(),
+          supabase
+            .from('characters')
+            .select('id, name_cn, name_en, name_jp, avatar_url, work_id, created_at')
+            .eq('work_id', id)
+        ]);
 
-      if (workResult.error) throw workResult.error;
-      if (charsResult.error) throw charsResult.error;
+        if (workResult.error) throw workResult.error;
+        if (charsResult.error) throw charsResult.error;
 
-      setWork(workResult.data);
-      const chars = charsResult.data || [];
+        const chars = (charsResult.data || []) as Character[];
+        let charsWithPersonality: CharacterWithPersonality[] = chars;
 
-      // Fetch personality votes for all characters
-      if (chars.length > 0) {
-        const characterIds = chars.map(c => c.id);
-        const { data: votesData } = await supabase
-          .from('personality_votes')
-          .select('character_id, mbti, enneagram, subtype, yi_hexagram')
-          .in('character_id', characterIds);
+        // Fetch personality votes for all characters and compute the top type per character
+        if (chars.length > 0) {
+          const { data: votesData, error: votesError } = await supabase
+            .from('personality_votes')
+            .select('character_id, mbti, enneagram, subtype, yi_hexagram')
+            .in('character_id', chars.map(c => c.id));
 
-        // Calculate top personality for each character
-        const charsWithPersonality = chars.map(char => {
-          const charVotes = votesData?.filter(v => v.character_id === char.id) || [];
-          
-          return {
-            ...char,
-            top_mbti: getTopVote(charVotes, 'mbti'),
-            top_enneagram: getTopVote(charVotes, 'enneagram'),
-            top_subtype: getTopVote(charVotes, 'subtype'),
-            top_yi: getTopVote(charVotes, 'yi_hexagram')
-          };
-        });
+          if (votesError) console.error('Error fetching votes:', votesError);
+          const topByChar = topPersonalitiesByCharacter(votesData);
+          charsWithPersonality = chars.map(char => ({ ...char, ...topByChar.get(char.id) }));
+        }
 
+        if (cancelled) return;
+        setWork(workResult.data as Work | null);
         setCharacters(charsWithPersonality);
-      } else {
-        setCharacters(chars);
+      } catch (error) {
+        if (cancelled) return;
+        console.error('Error fetching work details:', error);
+        setWork(null);
+        setCharacters([]);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (error) {
-      console.error('Error fetching work details:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  const getTopVote = (votes: any[], field: string): string | undefined => {
-    const counts: Record<string, number> = {};
-    votes.forEach(vote => {
-      const value = vote[field];
-      if (value) {
-        counts[value] = (counts[value] || 0) + 1;
-      }
-    });
-    
-    const entries = Object.entries(counts);
-    if (entries.length === 0) return undefined;
-    
-    return entries.sort((a, b) => b[1] - a[1])[0][0];
-  };
+    fetchWorkDetails();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   const getWorkName = (work: Work) => {
     if (i18n.language === 'zh') return work.name_cn || work.name_en || work.name_jp || 'Unknown';
     if (i18n.language === 'ja') return work.name_jp || work.name_en || work.name_cn || 'Unknown';
     return work.name_en || work.name_cn || work.name_jp || 'Unknown';
   };
+
+  const schema = useMemo(
+    () => (work && !loading ? buildWorkPageSchema(work, characters, i18n.language) : null),
+    [work, characters, loading, i18n.language]
+  );
+  useJsonLd(schema);
+  useCanonical(id ? `/works/${id}` : null);
 
   if (loading) {
     return (

@@ -97,12 +97,26 @@ export type YiHexagramType = typeof YI_HEXAGRAMS[number];
 // Preset avatar IDs (EVA-style avatars)
 export const PRESET_AVATARS = Array.from({ length: 20 }, (_, i) => i + 1);
 
+// File names under /public/userAvatar, indexed by avatar_id - 1
+const PRESET_AVATAR_NAMES = [
+  '御坂美琴', '夏娜', '立华奏', '亚丝娜', '雪之下雪乃',
+  '灰原哀', '时崎狂三', '秋山澪', '波奇', '千早爱音',
+  '四宫辉夜', '樱岛麻衣', '黑岩射手', '初音未来', '牧濑红莉栖',
+  '蕾姆', 'Saber', 'CC', '小圆', '春日野穹'
+];
+
+export const getAvatarUrl = (avatarId: number | null | undefined): string => {
+  const id = avatarId && avatarId >= 1 && avatarId <= PRESET_AVATAR_NAMES.length ? avatarId : 1;
+  return `/userAvatar/${String(id).padStart(2, '0')}-${PRESET_AVATAR_NAMES[id - 1]}.png`;
+};
+
 export interface Work {
   id: string;
   name_cn: string;
   name_en?: string;
   name_jp?: string;
   type: ('anime' | 'manga' | 'game' | 'novel')[]; // 改为数组
+  alias?: string[] | null; // JSONB 别名数组
   poster_url?: string; // 海报/封面图
   summary_md?: string;
   source_urls?: Record<string, string>;

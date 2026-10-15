@@ -13,7 +13,7 @@ interface Character {
 }
 
 export const SubmitWorkPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -39,6 +39,8 @@ export const SubmitWorkPage: React.FC = () => {
 
   // 从 localStorage 加载缓存的草稿
   useEffect(() => {
+    // Wait for the session to be restored before deciding the user is logged out (avoids redirect on refresh)
+    if (authLoading) return;
     if (!user) {
       navigate('/');
       return;
@@ -66,7 +68,9 @@ export const SubmitWorkPage: React.FC = () => {
     if (location.state?.workName) {
       setNameCn(location.state.workName);
     }
-  }, [user, navigate, location]);
+    // Only run once per signed-in user; re-running on token refresh would reload the draft over current edits
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id]);
 
   // 自动保存草稿到 localStorage
   useEffect(() => {

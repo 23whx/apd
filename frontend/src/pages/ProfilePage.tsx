@@ -2,14 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { PRESET_AVATARS } from '../lib/types';
+import { PRESET_AVATARS, getAvatarUrl } from '../lib/types';
 import { User as UserIcon, Mail, Calendar, Save, Loader2, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { SkeletonStats } from '../components/Skeleton';
 
 export const ProfilePage: React.FC = () => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [username, setUsername] = useState('');
@@ -26,13 +26,16 @@ export const ProfilePage: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
+    // Wait for the session to be restored before deciding the user is logged out (avoids redirect on refresh)
+    if (authLoading) return;
     if (!user) {
       navigate('/');
       return;
     }
     fetchProfile();
     fetchActivityStats();
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.id]);
 
   const fetchProfile = async () => {
     try {
@@ -59,24 +62,22 @@ export const ProfilePage: React.FC = () => {
     if (!user) return;
 
     try {
-      // 获取提交的作品数量
-      const { count: worksCount } = await supabase
-        .from('works')
-        .select('*', { count: 'exact', head: true })
-        .eq('created_by', user.id);
-
-      // 获取投票数量
-      const { count: votesCount } = await supabase
-        .from('personality_votes')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id);
-
-      // 获取评论数量
-      const { count: commentsCountData } = await supabase
-        .from('comments')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('is_deleted', false);
+      // 三个计数查询互不依赖，并行执行
+      const [{ count: worksCount }, { count: votesCount }, { count: commentsCountData }] = await Promise.all([
+        supabase
+          .from('works')
+          .select('*', { count: 'exact', head: true })
+          .eq('created_by', user.id),
+        supabase
+          .from('personality_votes')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id),
+        supabase
+          .from('comments')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('is_deleted', false),
+      ]);
 
       setWorksSubmitted(worksCount || 0);
       setVotesCast(votesCount || 0);
@@ -212,7 +213,6 @@ export const ProfilePage: React.FC = () => {
             </label>
             <div className="grid grid-cols-5 sm:grid-cols-10 gap-3">
               {PRESET_AVATARS.map((id) => {
-                const paddedId = id.toString().padStart(2, '0');
                 return (
                   <button
                     key={id}
@@ -225,12 +225,7 @@ export const ProfilePage: React.FC = () => {
                     }`}
                   >
                     <img
-                      src={`/userAvatar/${paddedId}-${
-                        ['御坂美琴', '夏娜', '立华奏', '亚丝娜', '雪之下雪乃', 
-                         '灰原哀', '时崎狂三', '秋山澪', '波奇', '千早爱音',
-                         '四宫辉夜', '樱岛麻衣', '黑岩射手', '初音未来', '牧濑红莉栖',
-                         '蕾姆', 'Saber', 'CC', '小圆', '春日野穹'][id - 1]
-                      }.png`}
+                      src={getAvatarUrl(id)}
                       alt={`Avatar ${id}`}
                       className="w-full h-full object-cover"
                     />

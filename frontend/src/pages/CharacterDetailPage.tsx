@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { supabase } from '../lib/supabase';
@@ -8,6 +8,8 @@ import { ArrowLeft, ExternalLink, TrendingUp } from 'lucide-react';
 import { VotePanel } from '../components/VotePanel';
 import { VoteChart } from '../components/VoteChart';
 import { CommentSection } from '../components/CommentSection';
+import { countVotes, topOf } from '../lib/personality';
+import { buildCharacterPageSchema, useCanonical, useJsonLd } from '../lib/schema';
 
 interface CharacterWithWork extends Character {
   works?: {
@@ -18,70 +20,19 @@ interface CharacterWithWork extends Character {
   };
 }
 
+const emptyStats = (): VoteStatistics => countVotes([]);
+
 export const CharacterDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { t, i18n } = useTranslation();
   const { user } = useAuth();
   const [character, setCharacter] = useState<CharacterWithWork | null>(null);
-  const [stats, setStats] = useState<VoteStatistics>({
-    mbti: {},
-    enneagram: {},
-    subtype: {},
-    tritype: {},
-    yi_hexagram: {}
-  });
+  const [stats, setStats] = useState<VoteStatistics>(emptyStats);
+  const [voteCount, setVoteCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (id) {
-      // Parallel data fetching for better performance
-      Promise.all([
-        fetchCharacterDetails(),
-        fetchVoteStatistics()
-      ]).finally(() => setLoading(false));
-    }
-  }, [id]);
-
-  const fetchCharacterDetails = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('characters')
-        .select(`
-          id,
-          name_cn,
-          name_en,
-          name_jp,
-          avatar_url,
-          work_id,
-          source_link,
-          summary_md,
-          created_at,
-          works:work_id (
-            id,
-            name_cn,
-            name_en,
-            name_jp
-          )
-        `)
-        .eq('id', id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching character:', error);
-        return;
-      }
-      // works is returned as an array by Supabase, get the first item
-      const characterData = data as any;
-      if (characterData && Array.isArray(characterData.works) && characterData.works.length > 0) {
-        characterData.works = characterData.works[0];
-      }
-      setCharacter(characterData as CharacterWithWork);
-    } catch (error) {
-      console.error('Error fetching character:', error);
-    }
-  };
-
-  const fetchVoteStatistics = async () => {
+  const fetchVoteStatistics = useCallback(async (isCancelled: () => boolean = () => false) => {
+    if (!id) return;
     try {
       const { data, error } = await supabase
         .from('personality_votes')
@@ -92,29 +43,72 @@ export const CharacterDetailPage: React.FC = () => {
         console.error('Error fetching vote statistics:', error);
         return;
       }
-
-      // Aggregate statistics
-      const newStats: VoteStatistics = {
-        mbti: {},
-        enneagram: {},
-        subtype: {},
-        tritype: {},
-        yi_hexagram: {}
-      };
-
-      data?.forEach((vote) => {
-        if (vote.mbti) newStats.mbti[vote.mbti] = (newStats.mbti[vote.mbti] || 0) + 1;
-        if (vote.enneagram) newStats.enneagram[vote.enneagram] = (newStats.enneagram[vote.enneagram] || 0) + 1;
-        if (vote.subtype) newStats.subtype[vote.subtype] = (newStats.subtype[vote.subtype] || 0) + 1;
-        if (vote.tritype) newStats.tritype[vote.tritype] = (newStats.tritype[vote.tritype] || 0) + 1;
-        if (vote.yi_hexagram) newStats.yi_hexagram[vote.yi_hexagram] = (newStats.yi_hexagram[vote.yi_hexagram] || 0) + 1;
-      });
-
-      setStats(newStats);
+      if (!isCancelled()) {
+        setStats(countVotes(data || []));
+        setVoteCount(data?.length ?? 0);
+      }
     } catch (error) {
       console.error('Error fetching vote statistics:', error);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    // Ignore responses for a previous id when navigating between characters quickly
+    let cancelled = false;
+    const isCancelled = () => cancelled;
+
+    const fetchCharacterDetails = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('characters')
+          .select(`
+            id,
+            name_cn,
+            name_en,
+            name_jp,
+            avatar_url,
+            work_id,
+            source_link,
+            summary_md,
+            created_at,
+            works:work_id (
+              id,
+              name_cn,
+              name_en,
+              name_jp
+            )
+          `)
+          .eq('id', id)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error fetching character:', error);
+        }
+        if (cancelled) return;
+        // works is a many-to-one relation; normalize in case it comes back as an array
+        const characterData = data as (Omit<CharacterWithWork, 'works'> & { works?: unknown }) | null;
+        if (characterData && Array.isArray(characterData.works)) {
+          characterData.works = characterData.works[0];
+        }
+        setCharacter((characterData as CharacterWithWork | null) ?? null);
+      } catch (error) {
+        console.error('Error fetching character:', error);
+      }
+    };
+
+    setLoading(true);
+    setStats(emptyStats());
+    setVoteCount(0);
+    // Parallel data fetching for better performance
+    Promise.all([fetchCharacterDetails(), fetchVoteStatistics(isCancelled)]).finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, fetchVoteStatistics]);
 
   const getCharacterName = (char: CharacterWithWork) => {
     if (i18n.language === 'zh' && char.name_cn) return char.name_cn;
@@ -131,6 +125,20 @@ export const CharacterDetailPage: React.FC = () => {
     if (work.name_en) return work.name_en;
     return work.name_cn || work.name_jp || 'Unknown Work';
   };
+
+  const schema = useMemo(() => {
+    if (loading || !character) return null;
+    const topTypes = {
+      mbti: topOf(stats.mbti),
+      enneagram: topOf(stats.enneagram),
+      subtype: topOf(stats.subtype),
+      tritype: topOf(stats.tritype),
+      yi_hexagram: topOf(stats.yi_hexagram),
+    };
+    return buildCharacterPageSchema(character, character.works, topTypes, voteCount, i18n.language);
+  }, [loading, character, stats, voteCount, i18n.language]);
+  useJsonLd(schema);
+  useCanonical(id ? `/characters/${id}` : null);
 
   if (loading) {
     return (
@@ -226,7 +234,7 @@ export const CharacterDetailPage: React.FC = () => {
 
       {/* Vote Panel */}
       {user && (
-        <VotePanel characterId={id!} onVoteSubmit={fetchVoteStatistics} />
+        <VotePanel key={`${id}:${user.id}`} characterId={id!} onVoteSubmit={() => fetchVoteStatistics()} />
       )}
 
       {/* Comments */}

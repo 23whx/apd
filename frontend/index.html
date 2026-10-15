@@ -2,8 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0F0F0F" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     
     <!-- Google AdSense -->
@@ -25,6 +28,12 @@
     <meta property="og:locale" content="en_US" />
     <meta property="og:locale:alternate" content="zh_CN" />
     <meta property="og:locale:alternate" content="ja_JP" />
+    <meta property="og:image" content="https://acgn-personality-database.top/og-image.png" />
+    <meta property="og:image:secure_url" content="https://acgn-personality-database.top/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="APD - ACGN Personality Database: community votes on MBTI, Enneagram, instincts, tritype and Yi Jing hexagrams for anime, manga, game and novel characters" />
     
     <!-- Twitter Card (English) -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -32,6 +41,8 @@
     <meta name="twitter:creator" content="@Rollkey4" />
     <meta name="twitter:title" content="APD - ACGN Personality Database" />
     <meta name="twitter:description" content="Explore MBTI, Enneagram, and personality types of anime, manga, game, and novel characters. Join our community!" />
+    <meta name="twitter:image" content="https://acgn-personality-database.top/og-image.png" />
+    <meta name="twitter:image:alt" content="APD - ACGN Personality Database: community votes on MBTI, Enneagram, instincts, tritype and Yi Jing hexagrams for anime, manga, game and novel characters" />
     
     <!-- Multilingual Support -->
     <link rel="alternate" hreflang="en" href="https://acgn-personality-database.top/" />
@@ -42,7 +53,68 @@
     <!-- Additional SEO -->
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <meta name="googlebot" content="index, follow" />
-    <link rel="canonical" href="https://acgn-personality-database.top/" />
+    <!-- No static canonical: every route is served by this same file, so a hardcoded "/" would mark all pages
+         as duplicates of the home page. Each page sets its own canonical at runtime (src/lib/schema.ts → useCanonical). -->
+
+    <!-- Site-wide structured data. Page-level graphs (WebPage, BreadcrumbList, work/character/article)
+         are injected at runtime and reference these nodes by @id. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebSite",
+          "@id": "https://acgn-personality-database.top/#website",
+          "url": "https://acgn-personality-database.top/",
+          "name": "ACGN Personality Database",
+          "alternateName": ["APD", "二次元角色人格数据库", "ACGNパーソナリティデータベース"],
+          "description": "A community database for exploring and voting on the personality types (MBTI, Enneagram, instinctual variants, tritype, Yi Jing hexagrams) of anime, manga, game and novel characters.",
+          "inLanguage": ["en", "zh-CN", "ja"],
+          "publisher": { "@id": "https://acgn-personality-database.top/#organization" },
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": {
+              "@type": "EntryPoint",
+              "urlTemplate": "https://acgn-personality-database.top/works?search={search_term_string}"
+            },
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://acgn-personality-database.top/#organization",
+          "name": "APD - ACGN Personality Database",
+          "url": "https://acgn-personality-database.top/",
+          "logo": {
+            "@type": "ImageObject",
+            "@id": "https://acgn-personality-database.top/#logo",
+            "url": "https://acgn-personality-database.top/logo-512.png",
+            "width": 512,
+            "height": 512,
+            "caption": "APD"
+          },
+          "image": { "@id": "https://acgn-personality-database.top/#logo" },
+          "description": "Open, community-driven platform for ACGN character personality analysis.",
+          "founder": { "@id": "https://acgn-personality-database.top/#rollkey" },
+          "sameAs": ["https://x.com/Rollkey4"],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "email": "wanghongxiang23@gmail.com",
+            "contactType": "customer support",
+            "availableLanguage": ["en", "zh", "ja"]
+          }
+        },
+        {
+          "@type": "Person",
+          "@id": "https://acgn-personality-database.top/#rollkey",
+          "name": "Rollkey",
+          "alternateName": "小学生滚键式",
+          "url": "https://acgn-personality-database.top/about",
+          "sameAs": ["https://x.com/Rollkey4", "https://github.com/Rollkey", "https://oumashu.top"]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

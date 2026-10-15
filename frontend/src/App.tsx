@@ -1,44 +1,58 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './contexts/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+// The landing page stays in the main bundle; every other route is split into its own chunk
 import { HomePage } from './pages/HomePage';
-import { WorksPage } from './pages/WorksPage';
-import { WorkDetailPage } from './pages/WorkDetailPage';
-import { CharactersPage } from './pages/CharactersPage';
-import { CharacterDetailPage } from './pages/CharacterDetailPage';
-import { ProfilePage } from './pages/ProfilePage';
-import { SubmitWorkPage } from './pages/SubmitWorkPage';
-import { SubmitCharacterPage } from './pages/SubmitCharacterPage';
-import { AdminPage } from './pages/AdminPage';
-import { AdminWorksPage } from './pages/AdminWorksPage';
-import { AdminCharactersPage } from './pages/AdminCharactersPage';
-import { EditWorkPage } from './pages/EditWorkPage';
-import { EditCharacterPage } from './pages/EditCharacterPage';
-import { AuthCallbackPage } from './pages/AuthCallbackPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { TermsPage } from './pages/TermsPage';
-import { AboutPage } from './pages/AboutPage';
-import { BlogPage } from './pages/BlogPage';
-import { BlogDetailPage } from './pages/BlogDetailPage';
-import { AdminBlogPage } from './pages/AdminBlogPage';
-import { AdminWriteBlogPage } from './pages/AdminWriteBlogPage';
-import { AdminReferBlogPage } from './pages/AdminReferBlogPage';
-import { detectAndSetLanguage } from './lib/geoLanguage';
+import { detectAndSetLanguage, getUrlLanguage, markLanguageReady } from './lib/geoLanguage';
 import './lib/i18n';
+
+const WorksPage = lazy(() => import('./pages/WorksPage').then((m) => ({ default: m.WorksPage })));
+const WorkDetailPage = lazy(() => import('./pages/WorkDetailPage').then((m) => ({ default: m.WorkDetailPage })));
+const CharactersPage = lazy(() => import('./pages/CharactersPage').then((m) => ({ default: m.CharactersPage })));
+const CharacterDetailPage = lazy(() => import('./pages/CharacterDetailPage').then((m) => ({ default: m.CharacterDetailPage })));
+const ProfilePage = lazy(() => import('./pages/ProfilePage').then((m) => ({ default: m.ProfilePage })));
+const SubmitWorkPage = lazy(() => import('./pages/SubmitWorkPage').then((m) => ({ default: m.SubmitWorkPage })));
+const SubmitCharacterPage = lazy(() => import('./pages/SubmitCharacterPage').then((m) => ({ default: m.SubmitCharacterPage })));
+const AdminPage = lazy(() => import('./pages/AdminPage').then((m) => ({ default: m.AdminPage })));
+const AdminWorksPage = lazy(() => import('./pages/AdminWorksPage').then((m) => ({ default: m.AdminWorksPage })));
+const AdminCharactersPage = lazy(() => import('./pages/AdminCharactersPage').then((m) => ({ default: m.AdminCharactersPage })));
+const EditWorkPage = lazy(() => import('./pages/EditWorkPage').then((m) => ({ default: m.EditWorkPage })));
+const EditCharacterPage = lazy(() => import('./pages/EditCharacterPage').then((m) => ({ default: m.EditCharacterPage })));
+const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage').then((m) => ({ default: m.AuthCallbackPage })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
+const AboutPage = lazy(() => import('./pages/AboutPage').then((m) => ({ default: m.AboutPage })));
+const BlogPage = lazy(() => import('./pages/BlogPage').then((m) => ({ default: m.BlogPage })));
+const BlogDetailPage = lazy(() => import('./pages/BlogDetailPage').then((m) => ({ default: m.BlogDetailPage })));
+const AdminBlogPage = lazy(() => import('./pages/AdminBlogPage').then((m) => ({ default: m.AdminBlogPage })));
+const AdminWriteBlogPage = lazy(() => import('./pages/AdminWriteBlogPage').then((m) => ({ default: m.AdminWriteBlogPage })));
+const AdminReferBlogPage = lazy(() => import('./pages/AdminReferBlogPage').then((m) => ({ default: m.AdminReferBlogPage })));
+
+const RouteFallback = () => (
+  <div className="flex items-center justify-center py-32">
+    <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-eva-secondary"></div>
+  </div>
+);
 
 function AppContent() {
   const { i18n } = useTranslation();
 
   useEffect(() => {
-    // Detect language based on IP on first visit
     const initLanguage = async () => {
-      const detectedLang = await detectAndSetLanguage();
-      if (detectedLang && detectedLang !== i18n.language) {
-        await i18n.changeLanguage(detectedLang);
-        console.log('[App] Language set to:', detectedLang);
+      try {
+        // An explicit language in the URL (/zh/blog/...) wins; the page syncs i18n to it, so skip geo-detection
+        if (getUrlLanguage(window.location.pathname)) return;
+
+        // Detect language based on IP on first visit
+        const detectedLang = await detectAndSetLanguage();
+        if (detectedLang && detectedLang !== i18n.language) {
+          await i18n.changeLanguage(detectedLang);
+        }
+      } finally {
+        markLanguageReady();
       }
     };
 
@@ -49,6 +63,7 @@ function AppContent() {
     <div className="min-h-screen bg-eva-bg text-eva-text font-sans selection:bg-eva-secondary selection:text-eva-bg flex flex-col">
       <Navbar />
       <main className="flex-grow">
+        <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/works" element={<WorksPage />} />
@@ -77,6 +92,7 @@ function AppContent() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/about" element={<AboutPage />} />
         </Routes>
+        </Suspense>
       </main>
       <Footer />
     </div>

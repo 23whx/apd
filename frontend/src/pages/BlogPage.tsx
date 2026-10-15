@@ -1,5 +1,7 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react';
+import { Link, useParams } from 'react-router-dom';
+import { useBlogLanguage } from '../lib/useBlogLanguage';
+import { buildBlogListSchema, useCanonical, useJsonLd } from '../lib/schema';
 import { supabase } from '../lib/supabase';
 import { Search, BookOpen, Calendar, Eye, ArrowDownWideNarrow, ArrowUpNarrowWide, ExternalLink } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -24,7 +26,6 @@ interface BlogPost {
 export const BlogPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { lang: langParam } = useParams<{ lang?: string }>();
-  const navigate = useNavigate();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -33,24 +34,8 @@ export const BlogPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = 最新在前, asc = 最旧在前
   const fetchSeqRef = useRef(0);
 
-  const normalizeLang = (raw: string | undefined | null): 'zh' | 'en' | 'ja' => {
-    const v = (raw || 'en').toLowerCase();
-    if (v.startsWith('zh')) return 'zh';
-    if (v.startsWith('ja')) return 'ja';
-    return 'en';
-  };
-
-  // 当前页面语言：优先 URL，其次 i18n
-  const currentLang = normalizeLang(langParam || i18n.language);
-  const desiredLang = normalizeLang(i18n.language);
-
-  // 当用户切换 i18n 语言时，同步 /:lang/blog 的 URL 前缀，否则 URL 会一直停留在 en
-  useEffect(() => {
-    if (!langParam) return; // /blog 路由不强制改 URL
-    if (currentLang !== desiredLang) {
-      navigate(`/${desiredLang}/blog`, { replace: true });
-    }
-  }, [langParam, currentLang, desiredLang, navigate]);
+  // 当前页面语言：/:lang/blog 以 URL 为准；/blog 会在语言确定后重定向到 /:lang/blog
+  const currentLang = useBlogLanguage();
 
   const fetchPosts = useCallback(async () => {
     const seq = ++fetchSeqRef.current;
@@ -98,8 +83,10 @@ export const BlogPage: React.FC = () => {
   }, [currentLang, sortOrder]);
 
   useEffect(() => {
+    // Unprefixed /blog is about to redirect to /:lang/blog; fetch once there instead of twice
+    if (!langParam) return;
     fetchPosts();
-  }, [fetchPosts]);
+  }, [fetchPosts, langParam]);
 
   const categories = [
     { value: 'all', label: t('blog.categories.all'), icon: '📚' },
@@ -113,10 +100,12 @@ export const BlogPage: React.FC = () => {
     { value: 'other', label: t('blog.categories.other'), icon: '📝' },
   ];
 
+  const normalizedQuery = searchQuery.toLowerCase();
   const filteredPosts = posts.filter(post => {
-    const matchesSearch = post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = !normalizedQuery ||
+      (post.title || '').toLowerCase().includes(normalizedQuery) ||
+      post.excerpt?.toLowerCase().includes(normalizedQuery) ||
+      (post.tags || []).some(tag => tag.toLowerCase().includes(normalizedQuery));
     
     const matchesCategory = selectedCategory === 'all' || post.category === selectedCategory;
     
@@ -191,6 +180,13 @@ export const BlogPage: React.FC = () => {
         };
     }
   };
+
+  const schema = useMemo(
+    () => (loading || fetchError ? null : buildBlogListSchema(posts, currentLang)),
+    [loading, fetchError, posts, currentLang]
+  );
+  useJsonLd(schema);
+  useCanonical(`/${currentLang}/blog`);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -345,7 +341,7 @@ export const BlogPage: React.FC = () => {
                 <div className="p-6 flex-grow flex flex-col">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 text-gray-400 font-mono uppercase tracking-wider">
-                      {categories.find(c => c.value === post.category)?.label.replace(/[📊🎭🪶🧭🔺☯️💻📝]\s/, '') || post.category}
+                      {categories.find(c => c.value === post.category)?.label || post.category}
                     </span>
                     <span className="text-[10px] text-gray-500 flex items-center gap-1 font-mono">
                       <Eye className="w-3 h-3" />

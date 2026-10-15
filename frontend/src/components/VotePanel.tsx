@@ -5,6 +5,12 @@ import { supabase } from '../lib/supabase';
 import { MBTI_TYPES, ENNEAGRAM_TYPES, SUBTYPES, YI_HEXAGRAMS } from '../lib/types';
 import { Vote, Loader2 } from 'lucide-react';
 
+// A tritype is one Enneagram type from each center: gut (8, 9, 1), heart (2, 3, 4) and head (5, 6, 7).
+const TRITYPE_CENTERS = ['891', '234', '567'];
+const isValidTritype = (value: string) =>
+  /^[1-9]{3}$/.test(value) &&
+  TRITYPE_CENTERS.every((center) => [...value].filter((digit) => center.includes(digit)).length === 1);
+
 interface VotePanelProps {
   characterId: string;
   onVoteSubmit: () => void;
@@ -13,6 +19,7 @@ interface VotePanelProps {
 export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
+  const userId = user?.id;
   const [mbti, setMbti] = useState<string>('');
   const [enneagram, setEnneagram] = useState<string>('');
   const [subtype, setSubtype] = useState<string>('');
@@ -22,67 +29,66 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
   const [message, setMessage] = useState('');
   const [hasVoted, setHasVoted] = useState(false);
 
+  // The parent keys this component by character + user, so state starts fresh for each of them
   useEffect(() => {
-    if (user && characterId) {
-      // 延迟执行，避免与页面初始化冲突
-      const timer = setTimeout(() => {
-        fetchExistingVote();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [user, characterId]);
+    if (!userId || !characterId) return;
+    let cancelled = false;
 
-  const fetchExistingVote = async () => {
-    if (!user) return;
+    (async () => {
+      try {
+        // 使用 maybeSingle 避免在没有投票记录时返回 406 错误
+        const { data, error } = await supabase
+          .from('personality_votes')
+          .select('mbti, enneagram, subtype, tritype, yi_hexagram')
+          .eq('character_id', characterId)
+          .eq('user_id', userId)
+          .maybeSingle();
 
-    try {
-      // 使用 maybeSingle 避免在没有投票记录时返回 406 错误
-      const { data, error } = await supabase
-        .from('personality_votes')
-        .select('mbti, enneagram, subtype, tritype, yi_hexagram')
-        .eq('character_id', characterId)
-        .eq('user_id', user.id)
-        .maybeSingle();
+        if (cancelled) return;
+        if (error) {
+          console.error('[VotePanel] Failed to fetch existing vote:', error);
+          return;
+        }
 
-      if (error) {
-        console.error('[VotePanel] Failed to fetch existing vote:', error);
-        console.error('[VotePanel] Error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint
-        });
-        return;
+        if (data) {
+          setMbti(data.mbti || '');
+          setEnneagram(data.enneagram || '');
+          setSubtype(data.subtype || '');
+          setTritype(data.tritype || '');
+          setYiHexagram(data.yi_hexagram || '');
+          setHasVoted(true);
+        }
+      } catch (error) {
+        console.error('[VotePanel] Unexpected error:', error);
       }
+    })();
 
-      if (data) {
-        setMbti(data.mbti || '');
-        setEnneagram(data.enneagram || '');
-        setSubtype(data.subtype || '');
-        setTritype(data.tritype || '');
-        setYiHexagram(data.yi_hexagram || '');
-        setHasVoted(true);
-      } else {
-        setHasVoted(false);
-      }
-    } catch (error) {
-      console.error('[VotePanel] Unexpected error:', error);
-    }
-  };
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, characterId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
+    const normalizedTritype = tritype.trim();
+    if (normalizedTritype && !isValidTritype(normalizedTritype)) {
+      setMessage('Error: Tritype must be 3 digits with one type from each center (8/9/1, 2/3/4, 5/6/7), e.g. 358');
+      return;
+    }
+
     setLoading(true);
     setMessage('');
 
     try {
       const voteData = {
         character_id: characterId,
-        user_id: user!.id,
+        user_id: user.id,
         mbti: mbti || null,
         enneagram: enneagram || null,
         subtype: subtype || null,
-        tritype: tritype || null,
+        tritype: normalizedTritype || null,
         yi_hexagram: yiHexagram || null
       };
 
@@ -91,7 +97,7 @@ export const VotePanel: React.FC<VotePanelProps> = ({ characterId, onVoteSubmit 
           .from('personality_votes')
           .update(voteData)
           .eq('character_id', characterId)
-          .eq('user_id', user!.id);
+          .eq('user_id', user.id);
 
         if (error) throw error;
         setMessage('Vote updated successfully!');

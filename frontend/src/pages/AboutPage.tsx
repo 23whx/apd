@@ -2,9 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Heart, Users, Target, Code, Mail, ExternalLink, Zap } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { useCanonical } from '../lib/schema';
 
 export const AboutPage: React.FC = () => {
   const { i18n } = useTranslation();
+  useCanonical('/about');
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

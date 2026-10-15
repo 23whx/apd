@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useBlogLanguage } from '../lib/useBlogLanguage';
+import { buildBlogPostSchema, useCanonical, useJsonLd } from '../lib/schema';
 import { supabase } from '../lib/supabase';
 import { ArrowLeft, Calendar, Eye, Tag, User, Share2, Link2, Check, X as XIcon } from 'lucide-react';
 import { CommentSection } from '../components/CommentSection';
@@ -20,6 +22,7 @@ interface BlogPost {
   tags: string[];
   view_count: number;
   published_at: string;
+  updated_at?: string;
   author_username: string;
   author_avatar_id: number;
   article_type?: string;
@@ -27,42 +30,23 @@ interface BlogPost {
 }
 
 export const BlogDetailPage: React.FC = () => {
-  const { i18n, t } = useTranslation();
+  const { t } = useTranslation();
   const { slug, lang: langParam } = useParams<{ slug: string; lang?: string }>();
-  const navigate = useNavigate();
   const [post, setPost] = useState<BlogPost | null>(null);
   const [loading, setLoading] = useState(true);
   const viewCountIncrementedRef = useRef<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  // 动态计算当前语言，确保响应 URL 参数和全局语言切换
-  const normalizeLang = (raw: string | undefined | null): 'zh' | 'en' | 'ja' => {
-    const v = (raw || 'en').toLowerCase();
-    if (v.startsWith('zh')) return 'zh';
-    if (v.startsWith('ja')) return 'ja';
-    return 'en';
-  };
-
-  const getCurrentLang = (): 'zh' | 'en' | 'ja' => normalizeLang(langParam || i18n.language);
-  const getDesiredLangFromI18n = (): 'zh' | 'en' | 'ja' => normalizeLang(i18n.language);
-
-  // 用户在 UI 切换语言时，同步更新 /:lang/blog/:slug 的 URL 前缀，保证查询的是对应语言的翻译
-  useEffect(() => {
-    if (!slug) return;
-    if (!langParam) return; // /blog/:slug 不强制改 URL
-
-    const urlLang = normalizeLang(langParam);
-    const desired = getDesiredLangFromI18n();
-    if (urlLang !== desired) {
-      navigate(`/${desired}/blog/${slug}`, { replace: true });
-    }
-  }, [slug, langParam, i18n.language, navigate]);
+  // 当前页面语言：/:lang/blog/:slug 以 URL 为准；/blog/:slug 会在语言确定后重定向
+  const currentLang = useBlogLanguage();
 
   useEffect(() => {
-    if (!slug) return;
+    // Unprefixed /blog/:slug is about to redirect to /:lang/blog/:slug; fetch once there instead of twice
+    if (!slug || !langParam) return;
     fetchPost();
-  }, [slug, langParam, i18n.language]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slug, langParam, currentLang]);
 
   // Dev 环境 React.StrictMode 会让 effect 触发两次：这里确保同一篇文章只计数一次
   useEffect(() => {
@@ -72,10 +56,13 @@ export const BlogDetailPage: React.FC = () => {
     incrementViewCount();
   }, [slug]);
 
+  const fetchSeqRef = useRef(0);
+
   const fetchPost = async () => {
+    // Language switches trigger overlapping fetches; only the latest one may update state
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     try {
-      const currentLang = getCurrentLang();
       
       // Prefer current language; fallback to zh
       const { data, error } = await supabase
@@ -90,11 +77,11 @@ export const BlogDetailPage: React.FC = () => {
 
       const rows = (data || []) as BlogPost[];
       const preferred = rows.find((r) => r.lang === currentLang) || rows.find((r) => r.lang === 'zh') || null;
-      setPost(preferred);
+      if (seq === fetchSeqRef.current) setPost(preferred);
     } catch (error) {
       console.error('Error fetching post:', error);
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) setLoading(false);
     }
   };
 
@@ -120,6 +107,7 @@ export const BlogDetailPage: React.FC = () => {
       'enneagram-types': `🎭 ${t('blog.categories.enneagramTypes')}`,
       'enneagram-wings': `🪶 ${t('blog.categories.enneagramWings')}`,
       'enneagram-instincts': `🧭 ${t('blog.categories.enneagramInstincts')}`,
+      'tritype': '🔺 Tritype',
       'yixue': `☯️ ${t('blog.categories.yixue')}`,
       'tech': `💻 ${t('blog.categories.tech')}`,
       'other': `📝 ${t('blog.categories.other')}`,
@@ -171,6 +159,11 @@ export const BlogDetailPage: React.FC = () => {
     e.preventDefault();
   };
 
+  const schema = useMemo(() => (post && !loading ? buildBlogPostSchema(post, currentLang) : null), [post, loading, currentLang]);
+  useJsonLd(schema);
+  // Canonical is the language-prefixed URL; unprefixed /blog/:slug redirects there
+  useCanonical(slug ? `/${currentLang}/blog/${slug}` : null);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -179,7 +172,6 @@ export const BlogDetailPage: React.FC = () => {
     );
   }
 
-  const currentLang = getCurrentLang();
   const blogListLink = `/${currentLang}/blog`;
 
   if (!post) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Hexagon } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 
 export const Footer: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -20,7 +20,7 @@ export const Footer: React.FC = () => {
           {/* Brand */}
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
-              <Hexagon className="w-6 h-6 text-eva-secondary" />
+              <BrandMark className="w-6 h-6" simple />
               <span className="text-white font-bold text-lg">APD</span>
             </div>
             <p className="text-sm text-gray-400 mb-4">

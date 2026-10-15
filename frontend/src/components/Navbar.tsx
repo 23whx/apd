@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { User, Hexagon, Globe, LogOut, Plus } from 'lucide-react';
+import { User, Globe, LogOut, Plus } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 import { useAuth } from '../contexts/AuthContext';
 import { AuthModal } from './AuthModal';
 import { supabase } from '../lib/supabase';
+import { LANGUAGE_STORAGE_KEY } from '../lib/i18n';
 
 export const Navbar: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -98,6 +100,12 @@ export const Navbar: React.FC = () => {
     const nextIndex = (currentIndex + 1) % languages.length;
     const nextLang = languages[nextIndex];
     i18n.changeLanguage(nextLang);
+    // Persist the manual choice so it survives reloads and takes priority over geo-detection
+    try {
+      localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLang);
+    } catch {
+      // ignore storage failures (private mode etc.)
+    }
 
     // 同步 blog 路由的语言前缀（只对 /blog 与 /:lang/blog 生效，避免影响其它非多语言路由）
     const path = location.pathname;
@@ -126,7 +134,7 @@ export const Navbar: React.FC = () => {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-2">
               <Link to="/" className="flex items-center gap-2">
-                <Hexagon className="w-8 h-8 text-eva-secondary fill-eva-secondary/20" />
+                <BrandMark className="w-8 h-8" />
                 <span className="text-xl font-bold tracking-wider text-white">
                   APD <span className="text-eva-secondary text-xs align-top">v0.1</span>
                 </span>
@@ -148,7 +156,7 @@ export const Navbar: React.FC = () => {
                   {t('nav.characters')}
                 </Link>
                 <Link
-                  to="/blog"
+                  to={`/${normalizeLang(i18n.language)}/blog`}
                   className="hover:text-eva-secondary transition-colors px-3 py-2 rounded-md text-sm font-medium"
                 >
                   {t('nav.blog')}

@@ -22,12 +22,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminChecked, setAdminChecked] = useState(false);
+  // Which user the current isAdmin value belongs to; avoids exposing a stale result after login/account switch.
+  const [adminCheckedUserId, setAdminCheckedUserId] = useState<string | null>(null);
   const ensuredUserIdsRef = useRef<Set<string>>(new Set());
   const ensuringUserIdsRef = useRef<Set<string>>(new Set());
-  const adminCheckedForUserRef = useRef<string | null>(null);
-  const adminCheckInFlightRef = useRef<Set<string>>(new Set());
-  const adminCheckAttemptsRef = useRef<Map<string, number>>(new Map());
 
   const ensureUserProfile = async (_authUser: User) => {
     // Best-effort: ensure a row exists in public.users for the auth user.
@@ -142,75 +140,57 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  // Centralized admin check (cached). All admin pages should use this instead of querying users.role themselves.
+  // Centralized admin check (cached per user). All admin pages should use this instead of querying users.role themselves.
   useEffect(() => {
     if (loading) return;
 
     if (!user) {
       setIsAdmin(false);
-      setAdminChecked(true);
-      adminCheckedForUserRef.current = null;
-      adminCheckAttemptsRef.current.clear();
+      setAdminCheckedUserId(null);
       return;
     }
 
-    const userId = user.id;
-    if (adminCheckedForUserRef.current === userId) {
-      return;
-    }
-    if (adminCheckInFlightRef.current.has(userId)) {
-      return;
-    }
-
-    adminCheckInFlightRef.current.add(userId);
-    setAdminChecked(false);
+    const authUser = user;
+    let cancelled = false;
 
     (async () => {
-      try {
-        // Ensure public.users row exists before role lookup to avoid false "no permission"
-        await ensureUserProfile(user);
+      // Ensure public.users row exists before role lookup to avoid false "no permission"
+      await ensureUserProfile(authUser);
 
+      // The profile row may be created slightly later (trigger / concurrent insert), so retry a few times.
+      for (let attempt = 1; attempt <= 4 && !cancelled; attempt++) {
         const { data, error } = await supabase
           .from('users')
           .select('role')
-          .eq('id', userId)
+          .eq('id', authUser.id)
           .maybeSingle();
 
-        // If row doesn't exist yet (data null) or role missing, retry a few times instead of caching false.
-        if (error || !data || !(data as any)?.role) {
-          const attempts = (adminCheckAttemptsRef.current.get(userId) ?? 0) + 1;
-          adminCheckAttemptsRef.current.set(userId, attempts);
+        if (cancelled) return;
 
-          if (attempts < 4) {
-            // brief backoff; keep adminChecked=false so admin pages stay in "Checking permissions..."
-            setTimeout(() => {
-              adminCheckInFlightRef.current.delete(userId);
-              // allow effect to run again (userId not cached)
-              adminCheckedForUserRef.current = null;
-              // flip checked to force re-render; effect depends on user?.id + loading, but re-render is enough
-              setAdminChecked(false);
-            }, 600 * attempts);
-            return;
-          }
-
-          if (error) {
-            console.warn('[Auth] admin role check failed:', error);
-          } else {
-            console.warn('[Auth] admin role missing or users row not found after retries');
-          }
-          setIsAdmin(false);
-          adminCheckedForUserRef.current = userId;
+        const role = (data as { role?: string } | null)?.role;
+        if (!error && role) {
+          setIsAdmin(role === 'admin' || role === 'mod');
+          setAdminCheckedUserId(authUser.id);
           return;
         }
 
-        const role = (data as any)?.role as string;
-        setIsAdmin(role === 'admin' || role === 'mod');
-        adminCheckedForUserRef.current = userId;
-      } finally {
-        adminCheckInFlightRef.current.delete(userId);
-        setAdminChecked(true);
+        if (attempt === 4) {
+          console.warn('[Auth] admin role check failed or role missing after retries:', error);
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 600 * attempt));
+      }
+
+      if (!cancelled) {
+        setIsAdmin(false);
+        setAdminCheckedUserId(authUser.id);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user?.id]);
 
   const signUp = async (email: string, password: string, username: string) => {
@@ -259,8 +239,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { data, error };
   };
 
+  const adminChecked = !loading && (user ? adminCheckedUserId === user.id : true);
+  const effectiveIsAdmin = adminChecked && !!user && isAdmin;
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, adminChecked, signUp, signIn, signOut, signInWithGoogle, signInWithGitHub }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin: effectiveIsAdmin, adminChecked, signUp, signIn, signOut, signInWithGoogle, signInWithGitHub }}>
       {children}
     </AuthContext.Provider>
   );

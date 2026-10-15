@@ -489,11 +489,24 @@ const resources = {
   }
 };
 
+export const SUPPORTED_LANGUAGES = ['en', 'zh', 'ja'] as const;
+export const LANGUAGE_STORAGE_KEY = 'i18nextLng';
+
+function readStoredLanguage(): string | null {
+  try {
+    const stored = localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return stored && (SUPPORTED_LANGUAGES as readonly string[]).includes(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
 i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'en', // Default to English, will be overridden by geo-detection
+    // Restore the user's saved choice; otherwise default to English until geo-detection runs
+    lng: readStoredLanguage() ?? 'en',
     fallbackLng: 'en',
     interpolation: {
       escapeValue: false

@@ -1,0 +1,216 @@
+<!doctype html>
+<!--
+  Open Graph image template (1200×630).
+  To re-render public/og-image.png: open this file in a Chromium-based browser with a 1200×630 viewport
+  (e.g. `agent-browser set viewport 1200 630` + `agent-browser screenshot`), wait for web fonts, take a screenshot.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@900&family=Noto+Sans+SC:wght@500;700&family=Noto+Sans+JP:wght@500&family=JetBrains+Mono:wght@500;700&display=block" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0F0F0F;
+    --surface: #1A1A1A;
+    --green: #A8FF60;
+    --purple: #965FD4;
+    --red: #7E1012;
+    --text: #FFFFFF;
+    --muted: #8A8A8A;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --serif: 'Noto Serif SC', serif;
+    --sans: 'Noto Sans SC', 'Noto Sans JP', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1200px; height: 630px; background: var(--bg); overflow: hidden; }
+
+  .card {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    background:
+      radial-gradient(520px 420px at 92% 18%, rgba(150, 95, 212, 0.30), transparent 70%),
+      radial-gradient(460px 360px at 4% 100%, rgba(168, 255, 96, 0.13), transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+  }
+
+  /* Hex grid texture */
+  .hexgrid { position: absolute; inset: 0; opacity: 0.55; }
+
+  /* Frame corners */
+  .corner { position: absolute; width: 34px; height: 34px; border-color: var(--green); border-style: solid; opacity: .8; }
+  .corner.tl { top: 26px; left: 26px; border-width: 3px 0 0 3px; }
+  .corner.tr { top: 26px; right: 26px; border-width: 3px 3px 0 0; }
+
+  /* ---------- Left column ---------- */
+  .left { position: absolute; left: 72px; top: 64px; width: 640px; }
+
+  .sys {
+    display: flex; align-items: center; gap: 12px;
+    font-family: var(--mono); font-size: 17px; font-weight: 700;
+    letter-spacing: .22em; color: var(--green); text-transform: uppercase;
+  }
+  .sys .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--green); box-shadow: 0 0 14px var(--green); }
+  .sys .sep { color: #3d3d3d; }
+  .sys .dim { color: var(--muted); }
+
+  /* EVA title-card typography: ultra-heavy serif, horizontally condensed */
+  .title { margin-top: 30px; font-family: var(--serif); font-weight: 900; line-height: .9; }
+  .title .row { display: block; transform: scaleX(.78); transform-origin: left; white-space: nowrap; }
+  .title .xl { font-size: 128px; letter-spacing: -.01em; }
+  .title .lg { font-size: 92px; letter-spacing: -.005em; }
+  .title .green { color: var(--green); text-shadow: 0 0 28px rgba(168, 255, 96, .25); }
+
+  .rule { margin-top: 26px; height: 2px; width: 560px; background: linear-gradient(90deg, var(--green), rgba(150,95,212,.8) 60%, transparent); }
+
+  .sub { margin-top: 20px; font-size: 25px; font-weight: 700; letter-spacing: .04em; color: #EDEDED; }
+  .sub .ja { display: block; margin-top: 6px; font-family: 'Noto Sans JP', var(--sans); font-weight: 500; font-size: 21px; color: #A9A9A9; letter-spacing: .06em; }
+
+  /* ---------- Right column: analysis panel ---------- */
+  .panel {
+    position: absolute; right: 64px; top: 112px; width: 400px;
+    background: linear-gradient(180deg, rgba(26,26,26,.92), rgba(18,18,18,.92));
+    border: 1px solid rgba(255,255,255,.10);
+    border-radius: 18px;
+    padding: 24px 26px 22px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(150,95,212,.15) inset;
+  }
+  .panel-head { display: flex; align-items: center; gap: 16px; }
+  .logo { width: 64px; height: 64px; flex: none; filter: drop-shadow(0 0 18px rgba(150,95,212,.55)); }
+  .panel-head .label { font-family: var(--mono); font-size: 13px; letter-spacing: .2em; color: var(--muted); }
+  .panel-head .name { font-size: 22px; font-weight: 700; margin-top: 4px; }
+
+  .bars { margin-top: 22px; display: grid; gap: 15px; }
+  .bar .meta { display: flex; justify-content: space-between; align-items: baseline; font-family: var(--mono); }
+  .bar .k { font-size: 12px; letter-spacing: .18em; color: var(--muted); }
+  .bar .v { font-size: 20px; font-weight: 700; color: var(--text); }
+  .bar .v small { font-size: 13px; color: var(--muted); font-weight: 500; margin-left: 8px; }
+  .track { margin-top: 7px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.07); overflow: hidden; }
+  .fill { height: 100%; border-radius: 99px; }
+  .g { background: linear-gradient(90deg, #6fd13a, var(--green)); box-shadow: 0 0 12px rgba(168,255,96,.45); }
+  .p { background: linear-gradient(90deg, #6d3fb0, var(--purple)); box-shadow: 0 0 12px rgba(150,95,212,.45); }
+
+  .chips { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+    padding: 6px 11px; border-radius: 7px;
+    background: rgba(150,95,212,.16); color: #C9A6F5; border: 1px solid rgba(150,95,212,.35);
+  }
+  .chip.hex { display: inline-flex; align-items: center; gap: 7px; }
+  .chip .gua { width: 13px; height: 14px; }
+  .chip.hex { font-family: var(--sans); color: var(--green); background: rgba(168,255,96,.10); border-color: rgba(168,255,96,.3); }
+
+  /* ---------- Bottom hazard band ---------- */
+  .band {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 74px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 72px;
+    background: rgba(10,10,10,.92);
+    border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .band::before {
+    content: ''; position: absolute; left: 0; right: 0; top: -12px; height: 12px;
+    background: repeating-linear-gradient(-45deg, var(--red) 0 16px, #0F0F0F 16px 32px);
+    opacity: .95;
+  }
+  .systems { font-family: var(--mono); font-size: 16px; font-weight: 700; letter-spacing: .16em; color: #CFCFCF; }
+  .systems b { color: var(--green); font-weight: 700; }
+  .domain { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--muted); letter-spacing: .04em; }
+  .domain span { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="card" id="og">
+  <!-- Hexagon grid -->
+  <svg class="hexgrid" width="1200" height="630" aria-hidden="true">
+    <defs>
+      <pattern id="hex" width="56" height="97" patternUnits="userSpaceOnUse" patternTransform="translate(-8 -20)">
+        <path d="M28 0 L56 16.2 L56 48.5 L28 64.7 L0 48.5 L0 16.2 Z M28 64.7 L28 97" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
+      </pattern>
+      <linearGradient id="fade" x1="0" x2="1">
+        <stop offset="0" stop-color="#fff" stop-opacity="0.35"/>
+        <stop offset="0.55" stop-color="#fff" stop-opacity="1"/>
+      </linearGradient>
+      <mask id="m"><rect width="1200" height="630" fill="url(#fade)"/></mask>
+    </defs>
+    <rect width="1200" height="630" fill="url(#hex)" mask="url(#m)"/>
+  </svg>
+
+  <div class="corner tl"></div>
+  <div class="corner tr"></div>
+
+  <div class="left">
+    <div class="sys"><span class="dot"></span>APD <span class="sep">//</span> <span class="dim">Personality Analysis System</span></div>
+
+    <h1 class="title">
+      <span class="row xl">ACGN</span>
+      <span class="row lg green">PERSONALITY</span>
+      <span class="row lg">DATABASE</span>
+    </h1>
+
+    <div class="rule"></div>
+
+    <p class="sub">二次元角色人格数据库 · 投票 · 分析 · 讨论
+      <span class="ja">アニメ・漫画・ゲームキャラの性格データベース</span>
+    </p>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head">
+      <!-- Same artwork as public/favicon.svg -->
+      <svg class="logo" viewBox="0 0 512 512" fill="none" aria-hidden="true">
+        <path d="M256 40 L443 148 L443 364 L256 472 L69 364 L69 148 Z" fill="#965FD4"/>
+        <path d="M256 40 L443 148 L398 174 L256 92 Z" fill="#B48AE6"/>
+        <path d="M443 148 L443 364 L398 338 L398 174 Z" fill="#A876DF"/>
+        <path d="M69 148 L256 40 L256 92 L114 174 Z" fill="#8A52CC"/>
+        <path d="M69 148 L114 174 L114 338 L69 364 Z" fill="#7440B3"/>
+        <path d="M69 364 L114 338 L256 420 L256 472 Z" fill="#5E3296"/>
+        <path d="M256 472 L256 420 L398 338 L443 364 Z" fill="#6B3AA6"/>
+        <path d="M256 92 L398 174 L398 338 L256 420 L114 338 L114 174 Z" fill="#121212"/>
+        <path d="M256 130 V392" stroke="#A8FF60" stroke-width="36"/>
+        <path d="M172 150 V236 L256 290 L340 236 V150" stroke="#A8FF60" stroke-width="36" stroke-linejoin="miter"/>
+      </svg>
+      <div>
+        <div class="label">COMMUNITY VOTE</div>
+        <div class="name">Character Analysis</div>
+      </div>
+    </div>
+
+    <div class="bars">
+      <div class="bar">
+        <div class="meta"><span class="k">MBTI</span><span class="v">INTJ<small>64%</small></span></div>
+        <div class="track"><div class="fill g" style="width:64%"></div></div>
+      </div>
+      <div class="bar">
+        <div class="meta"><span class="k">ENNEAGRAM</span><span class="v">5w4<small>51%</small></span></div>
+        <div class="track"><div class="fill p" style="width:51%"></div></div>
+      </div>
+      <div class="bar">
+        <div class="meta"><span class="k">INSTINCT</span><span class="v">sp/sx<small>47%</small></span></div>
+        <div class="track"><div class="fill g" style="width:47%"></div></div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <span class="chip">TRITYPE 548</span>
+      <span class="chip">ENFP</span>
+      <span class="chip">8w7</span>
+      <span class="chip hex">
+        <!-- ䷀ drawn as SVG: the Yijing hexagram glyph is missing from most fonts -->
+        <svg class="gua" viewBox="0 0 12 13" aria-hidden="true"><g fill="currentColor"><rect y="0" width="12" height="1.4"/><rect y="2.3" width="12" height="1.4"/><rect y="4.6" width="12" height="1.4"/><rect y="6.9" width="12" height="1.4"/><rect y="9.2" width="12" height="1.4"/><rect y="11.5" width="12" height="1.4"/></g></svg>
+        乾为天</span>
+    </div>
+  </div>
+
+  <div class="band">
+    <div class="systems"><b>MBTI</b> · ENNEAGRAM · INSTINCTS · TRITYPE · <b>易经</b></div>
+    <div class="domain"><span>acgn-personality-database</span>.top</div>
+  </div>
+</div>
+</body>
+</html>

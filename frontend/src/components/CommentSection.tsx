@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getAvatarUrl } from '../lib/types';
 import { MessageSquare, Send, Loader2, Edit2, Trash2, X, Check, ArrowUpDown } from 'lucide-react';
 
 interface Comment {
@@ -9,10 +10,11 @@ interface Comment {
   user_id: string;
   content_md: string;
   created_at: string;
+  // Can be null when the author's profile row is missing or hidden by RLS
   users: {
     username: string;
-    avatar_id: number;
-  };
+    avatar_id: number | null;
+  } | null;
 }
 
 interface CommentSectionProps {
@@ -29,38 +31,41 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
   const [fetchLoading, setFetchLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
-  const [hasCommented, setHasCommented] = useState(false);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // desc = 最新在前，asc = 最早在前
 
-  useEffect(() => {
-    fetchComments();
-  }, [targetId, user, sortOrder]); // Add sortOrder to dependencies
+  const userId = user?.id;
+  // Guards against out-of-order responses when the target changes quickly
+  const fetchSeqRef = React.useRef(0);
 
-  const fetchComments = async () => {
+  // Comments are always fetched oldest-first; sort order is applied locally so toggling doesn't refetch
+  const fetchComments = React.useCallback(async () => {
+    const seq = ++fetchSeqRef.current;
     setFetchLoading(true);
     try {
       const { data, error } = await supabase
         .from('comments')
-        .select('*, users(username, avatar_id)')
+        .select('id, user_id, content_md, created_at, users(username, avatar_id)')
         .eq('target_type', targetType)
         .eq('target_id', targetId)
         .eq('is_deleted', false)
-        .order('created_at', { ascending: sortOrder === 'asc' }); // 根据排序顺序
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setComments(data || []);
-
-      // Check if current user has already commented
-      if (user) {
-        const userComment = data?.find(c => c.user_id === user.id);
-        setHasCommented(!!userComment);
-      }
+      if (seq !== fetchSeqRef.current) return;
+      setComments((data || []) as unknown as Comment[]);
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
-      setFetchLoading(false);
+      if (seq === fetchSeqRef.current) setFetchLoading(false);
     }
-  };
+  }, [targetType, targetId]);
+
+  useEffect(() => {
+    fetchComments();
+  }, [fetchComments]);
+
+  // Whether the current user has already commented is derived from the loaded list
+  const hasCommented = !!userId && comments.some(c => c.user_id === userId);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +93,6 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
       }
 
       setNewComment('');
-      setHasCommented(true);
       fetchComments();
     } catch (error: any) {
       console.error('Error posting comment:', error);
@@ -138,8 +142,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
 
       if (error) throw error;
 
-      // After deletion, user can comment again
-      setHasCommented(false);
+      // After deletion the refreshed list no longer contains the user's comment, so they can comment again
       fetchComments();
     } catch (error: any) {
       console.error('Error deleting comment:', error);
@@ -161,15 +164,16 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
     });
   };
 
-  // Sort comments: user's own comment first, then others
+  // Sort comments: user's own comment first, then others. Numbers follow posting order (#1 = oldest).
   const sortedComments = React.useMemo(() => {
-    if (!user) return comments;
-    
-    const userComments = comments.filter(c => c.user_id === user.id);
-    const otherComments = comments.filter(c => c.user_id !== user.id);
-    
-    return [...userComments, ...otherComments];
-  }, [comments, user]);
+    const numbered = comments.map((comment, index) => ({ comment, number: index + 1 }));
+    if (sortOrder === 'desc') numbered.reverse();
+    if (!userId) return numbered;
+    return [
+      ...numbered.filter(({ comment }) => comment.user_id === userId),
+      ...numbered.filter(({ comment }) => comment.user_id !== userId),
+    ];
+  }, [comments, sortOrder, userId]);
 
   return (
     <div className="bg-eva-surface border border-white/10 rounded-xl p-6">
@@ -247,13 +251,11 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
         <div className="text-center py-8 text-gray-500">{t('comments.noComments')}</div>
       ) : (
         <div className="space-y-4">
-          {sortedComments.map((comment) => {
-            const isOwnComment = user && comment.user_id === user.id;
-            // 计算序号：根据排序顺序决定
-            const commentNumber = sortOrder === 'desc' 
-              ? comments.length - comments.findIndex(c => c.id === comment.id)
-              : comments.findIndex(c => c.id === comment.id) + 1;
-            
+          {sortedComments.map(({ comment, number: commentNumber }) => {
+            const isOwnComment = !!userId && comment.user_id === userId;
+            const avatarId = comment.users?.avatar_id ?? 1;
+            const authorName = comment.users?.username ?? 'Unknown';
+
             return (
               <div 
                 key={comment.id} 
@@ -270,13 +272,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
                   {/* User Avatar */}
                   <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 border-2 border-eva-secondary/30">
                     <img
-                      src={`/userAvatar/${comment.users.avatar_id.toString().padStart(2, '0')}-${
-                        ['御坂美琴', '夏娜', '立华奏', '亚丝娜', '雪之下雪乃', 
-                         '灰原哀', '时崎狂三', '秋山澪', '波奇', '千早爱音',
-                         '四宫辉夜', '樱岛麻衣', '黑岩射手', '初音未来', '牧濑红莉栖',
-                         '蕾姆', 'Saber', 'CC', '小圆', '春日野穹'][comment.users.avatar_id - 1]
-                      }.png`}
-                      alt={`Avatar ${comment.users.avatar_id}`}
+                      src={getAvatarUrl(avatarId)}
+                      loading="lazy"
+                      alt={`Avatar ${avatarId}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         // Fallback: show avatar_id number if image fails to load
@@ -287,7 +285,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
                           parent.classList.add('bg-eva-secondary/20', 'flex', 'items-center', 'justify-center');
                           const fallback = document.createElement('span');
                           fallback.className = 'text-eva-secondary font-bold avatar-fallback';
-                          fallback.textContent = comment.users.avatar_id.toString();
+                          fallback.textContent = String(avatarId);
                           parent.appendChild(fallback);
                         }
                       }}
@@ -298,7 +296,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ targetType, targ
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-sm">
-                          {comment.users.username}
+                          {authorName}
                           {isOwnComment && (
                             <span className="ml-2 text-xs bg-eva-accent/20 text-eva-accent px-2 py-0.5 rounded">
                               {t('comments.you')}
