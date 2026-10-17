@@ -1,7 +1,6 @@
-# Environment Variables
-.env
-.env.local
-.env.production
+# Environment Variables: every .env variant stays local; only *.example templates are committed
+.env*
+!.env*.example
 
 # Logs
 logs

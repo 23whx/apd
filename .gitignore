@@ -25,19 +25,33 @@ frontend/.vite/
 # ==========================================
 # 环境变量（敏感信息）
 # ==========================================
-.env
-.env.local
-.env.*.local
-.env.development
-.env.production
-.env.test
-frontend/.env
-frontend/.env.local
-frontend/.env.production
+# 所有 .env 变体（.env、.env.local、.env.publish、.env.staging…）一律忽略，只提交 *.example 模板
+.env*
+!.env*.example
 
 # API 密钥备份文件
 **/api-keys.txt
 **/secrets.txt
+**/secrets/
+*.secret
+*.secrets
+
+# 私钥、证书、云服务凭据
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+id_rsa*
+id_ed25519*
+*credentials*.json
+*service-account*.json
+*serviceAccount*.json
+
+# Claude Code / 编辑器的本机设置（可能包含令牌或命令历史）
+.claude/settings.local.json
+**/.claude/settings.local.json
 
 # ==========================================
 # Vercel

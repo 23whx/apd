@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { AuthProvider } from './contexts/AuthContext';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
+import { RouteErrorBoundary } from './components/RouteErrorBoundary';
 // The landing page stays in the main bundle; every other route is split into its own chunk
 import { HomePage } from './pages/HomePage';
 import { detectAndSetLanguage, getUrlLanguage, markLanguageReady } from './lib/geoLanguage';
@@ -41,6 +42,7 @@ const RouteFallback = () => (
 
 function AppContent() {
   const { i18n } = useTranslation();
+  const location = useLocation();
 
   useEffect(() => {
     const initLanguage = async () => {
@@ -71,6 +73,8 @@ function AppContent() {
     <div className="min-h-screen bg-eva-bg text-eva-text font-sans selection:bg-eva-secondary selection:text-eva-bg flex flex-col">
       <Navbar />
       <main className="flex-grow">
+        {/* A crashing or stale-chunk page must not unmount the whole app (that showed a black screen) */}
+        <RouteErrorBoundary resetKey={location.pathname}>
         <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -103,6 +107,7 @@ function AppContent() {
           <Route path="/about" element={<AboutPage />} />
         </Routes>
         </Suspense>
+        </RouteErrorBoundary>
       </main>
       <Footer />
     </div>
